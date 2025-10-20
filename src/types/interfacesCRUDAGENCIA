@@ -1,0 +1,165 @@
+type AgenciaPostData = {
+  nombre: string;
+  password: string;
+  dominio: string;
+  estado: '0' | '1';
+  logo: File | null;
+
+  quienes_somos_es: string | null;
+  quienes_somos_en: string | null;
+  quienes_somos_pt: string | null;
+
+  tipografia_agencia: string | null;
+  color_tipografia_agencia: string;
+  color_fondo_app: string;
+  color_principal: string;
+  color_secundario: string;
+  color_terciario: string;
+
+  header_imagen_background_opacidad: string;
+  header_video_background_opacidad: string;
+  header_imagen_background: File | null;
+  header_video_background: File | null;
+
+  buscador_tipografia: string | null;
+  buscador_tipografia_color: string;
+  buscador_tipografia_color_label: string;
+  buscador_color_primario: string;
+  buscador_color_secundario: string;
+  buscador_color_terciario: string;
+  buscador_inputColor: string | null;
+  buscador_inputFondoColor: string | null;
+
+  publicidad_existe: '0' | '1';
+  publicidad_titulo: string | null;
+  publicidad_tipografia_color: string;
+  publicidad_color_primario: string;
+  publicidad_color_secundario: string;
+  publicidad_color_terciario: string;
+  publicidad_imagen_1: File | null;
+  publicidad_imagen_2: File | null;
+  publicidad_imagen_3: File | null;
+
+  tarjetas_titulo: string | null;
+  tarjetas_tipografia: string | null;
+  tarjetas_tipografia_color: string;
+  tarjetas_tipografia_color_titulo: string;
+  tarjetas_tipografia_color_contenido: string;
+  tarjetas_color_primario: string;
+  tarjetas_color_secundario: string;
+  tarjetas_color_terciario: string;
+
+  banner_registro_titulo: string | null;
+  banner_registro_tipografia_color: string;
+  banner_registro_color_primario: string;
+  banner_registro_color_secundario: string;
+  banner_registro_color_terciario: string;
+
+  footer_texto: string | null;
+  footer_tipografia: string | null;
+  footer_tipografia_color: string;
+  footer_facebook: string | null;
+  footer_twitter: string | null;
+  footer_instagram: string | null;
+  footer_whatsapp: string | null;
+  footer_telefono: string | null;
+  footer_email: string | null;
+  footer_direccion: string | null;
+  footer_ciudad: string | null;
+  footer_pais: string | null;
+  footer_color_primario: string;
+  footer_color_secundario: string;
+  footer_color_terciario: string;
+
+  fecha_creacion: string;
+};
+
+
+type AgenciaUpdateData = {
+    id: string; // ID de la agencia a modificar (obligatorio)
+  
+    // Datos generales
+    nombre: string;
+    password: string;
+    dominio: string;
+    estado: '0' | '1'; // booleano transformado
+  
+    // Archivos
+    logo?: File;
+    header_imagen_background?: File;
+    header_video_background?: File;
+    publicidad_imagen_1?: File;
+    publicidad_imagen_2?: File;
+    publicidad_imagen_3?: File;
+  
+    // Quienes somos
+    quienes_somos_es?: string | null;
+    quienes_somos_en?: string | null;
+    quienes_somos_pt?: string | null;
+  
+    // Estilo general
+    tipografia_agencia?: string | null;
+    color_tipografia_agencia: string;
+    color_fondo_app: string;
+    color_principal: string;
+    color_secundario: string;
+    color_terciario: string;
+  
+    // Header
+    header_imagen_background_opacidad: string;
+    header_video_background_opacidad: string;
+  
+    // Buscador
+    buscador_tipografia?: string | null;
+    buscador_tipografia_color: string;
+    buscador_tipografia_color_label: string;
+    buscador_color_primario: string;
+    buscador_color_secundario: string;
+    buscador_color_terciario: string;
+    buscador_inputColor?: string | null;
+    buscador_inputFondoColor?: string | null;
+  
+    // Publicidad cliente
+    publicidad_existe: '0' | '1';
+    publicidad_titulo?: string | null;
+    publicidad_tipografia_color: string;
+    publicidad_color_primario: string;
+    publicidad_color_secundario: string;
+    publicidad_color_terciario: string;
+  
+    // Tarjetas
+    tarjetas_titulo?: string | null;
+    tarjetas_tipografia?: string | null;
+    tarjetas_tipografia_color: string;
+    tarjetas_tipografia_color_titulo: string;
+    tarjetas_tipografia_color_contenido: string;
+    tarjetas_color_primario: string;
+    tarjetas_color_secundario: string;
+    tarjetas_color_terciario: string;
+  
+    // Banner de registro
+    banner_registro_titulo?: string | null;
+    banner_registro_tipografia_color: string;
+    banner_registro_color_primario: string;
+    banner_registro_color_secundario: string;
+    banner_registro_color_terciario: string;
+  
+    // Footer
+    footer_texto?: string | null;
+    footer_tipografia?: string | null;
+    footer_tipografia_color: string;
+    footer_facebook?: string | null;
+    footer_twitter?: string | null;
+    footer_instagram?: string | null;
+    footer_whatsapp?: string | null;
+    footer_telefono?: string | null;
+    footer_email?: string | null;
+    footer_direccion?: string | null;
+    footer_ciudad?: string | null;
+    footer_pais?: string | null;
+    footer_color_primario: string;
+    footer_color_secundario: string;
+    footer_color_terciario: string;
+  };
+
+  
