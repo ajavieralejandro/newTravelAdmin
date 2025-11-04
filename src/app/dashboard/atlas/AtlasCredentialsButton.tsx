@@ -14,17 +14,24 @@ type Props = {
   initial?: { usuario?: string | null; empresa?: string | null; sucursal?: string | null; };
   onSaved?: (payload: { atlas_usuario: string; atlas_empresa: string; atlas_sucursal: string; }) => void;
   size?: 'small' | 'medium' | 'large';
+  // (opcional) si alguna vez querés autenticar por token sin cookies:
+  authToken?: string;
 };
 
 type ValidationErrors = Partial<Record<'atlas_usuario'|'atlas_clave'|'atlas_empresa'|'atlas_sucursal', string[]>>;
 
-const API_BASE =  'https://travelconnect.com.ar/'; // '' = mismo dominio
+// ❗️Sin barra final
+const API_BASE = 'https://travelconnect.com.ar';
+
+// Helper para evitar dobles barras
+const apiUrl = (path: string) => `${API_BASE}${path.startsWith('/') ? '' : '/'}${path}`;
 
 export default function AtlasCredentialsButton({
   agenciaId,
   initial,
   onSaved,
   size = 'small',
+  authToken,
 }: Props) {
   const [open, setOpen] = React.useState(false);
   const [loadingInit, setLoadingInit] = React.useState(false);
@@ -50,38 +57,47 @@ export default function AtlasCredentialsButton({
     }
   }, [initial?.usuario, initial?.empresa, initial?.sucursal, open]);
 
+  const commonHeaders: HeadersInit = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+  };
+
   const fetchCurrent = React.useCallback(async () => {
     if (!agenciaId) return;
     setLoadingInit(true);
     setServerError(null);
     try {
-      const res = await fetch(`${API_BASE}api/atlas/agencias/${agenciaId}/credenciales`, {
+      const res = await fetch(apiUrl(`/api/atlas/agencias/${agenciaId}/credenciales`), {
         method: 'GET',
-        headers: { 'Accept': 'application/json' },
-        credentials: 'include',
+        headers: commonHeaders,
+        credentials: 'include', // dejalo si usás cookies/sesión; si usás token, no molesta
+        mode: 'cors',
       });
-      if (res.ok) {
-        const data = await res.json();
+
+      const text = await res.text();
+      const data = (() => { try { return JSON.parse(text); } catch { return null; } })();
+
+      if (!res.ok) {
+        setServerError(data?.error || `No se pudieron cargar las credenciales (HTTP ${res.status}).`);
+      } else {
         setUsuario(data?.atlas_usuario ?? '');
         setEmpresa(data?.atlas_empresa ?? '');
         setSucursal(data?.atlas_sucursal ?? '');
         setClave(''); // nunca prellenar
-      } else {
-        // Si falla el GET, mantenemos los valores de initial y mostramos aviso
-        setServerError(`No se pudieron cargar las credenciales (HTTP ${res.status}).`);
       }
     } catch (e: any) {
       setServerError(e?.message || 'Error de red al leer credenciales.');
     } finally {
       setLoadingInit(false);
     }
-  }, [agenciaId]);
+  }, [agenciaId, authToken]);
 
   const handleOpen = () => {
     setOkMsg(null);
     setFieldErrors({});
     setOpen(true);
-    // Intentá leer del backend al abrir
     if (agenciaId) fetchCurrent();
   };
 
@@ -95,13 +111,12 @@ export default function AtlasCredentialsButton({
     setFieldErrors({});
 
     try {
-      const res = await fetch(`${API_BASE}/api/atlas/agencias/${agenciaId}/credenciales`, {
+      // ❗️Acá estaba el doble slash: antes `${API_BASE}/api/...`
+      const res = await fetch(apiUrl(`/api/atlas/agencias/${agenciaId}/credenciales`), {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-        },
+        headers: commonHeaders,
         credentials: 'include',
+        mode: 'cors',
         body: JSON.stringify({
           atlas_usuario: usuario,
           atlas_clave:   clave,     // requerido por tu validador actual
@@ -110,7 +125,8 @@ export default function AtlasCredentialsButton({
         }),
       });
 
-      const data = await res.json().catch(() => ({}));
+      const text = await res.text();
+      const data = (() => { try { return JSON.parse(text); } catch { return null; } })();
 
       if (!res.ok) {
         if (res.status === 422 && data?.details) {
