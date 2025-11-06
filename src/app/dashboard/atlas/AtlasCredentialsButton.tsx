@@ -20,7 +20,7 @@ type Props = {
 
 type ValidationErrors = Partial<Record<'atlas_usuario'|'atlas_clave'|'atlas_empresa'|'atlas_sucursal', string[]>>;
 
-// 👉 API del backend Laravel (travelconnect)
+// Backend Laravel
 const API_BASE = 'https://travelconnect.com.ar';
 
 // Helper para evitar dobles barras
@@ -41,13 +41,11 @@ export default function AtlasCredentialsButton({
   const [okMsg, setOkMsg] = React.useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = React.useState<ValidationErrors>({});
 
-  // Campos (la clave NO se precarga por seguridad)
   const [usuario, setUsuario]   = React.useState(initial?.usuario ?? '');
   const [empresa, setEmpresa]   = React.useState(initial?.empresa ?? '');
   const [sucursal, setSucursal] = React.useState(initial?.sucursal ?? '');
   const [clave, setClave]       = React.useState('');
 
-  // Refrescar cuando cambian props initial y el diálogo esté cerrado
   React.useEffect(() => {
     if (!open) {
       setUsuario(initial?.usuario ?? '');
@@ -57,7 +55,6 @@ export default function AtlasCredentialsButton({
     }
   }, [initial?.usuario, initial?.empresa, initial?.sucursal, open]);
 
-  // Headers comunes
   const commonHeaders: HeadersInit = {
     Accept: 'application/json',
     'X-Requested-With': 'XMLHttpRequest',
@@ -69,12 +66,11 @@ export default function AtlasCredentialsButton({
     setLoadingInit(true);
     setServerError(null);
     try {
-      // 👉 GET a travelconnect.com.ar/agencias/{id}/credenciales
-      const res = await fetch(apiUrl(`/agencias/${agenciaId}/credenciales`), {
+      // ✅ GET /api/agencias/{id}/credenciales
+      const res = await fetch(apiUrl(`/api/agencias/${agenciaId}/credenciales`), {
         method: 'GET',
         headers: commonHeaders,
-        credentials: 'include',   // si usás cookies/sesión
-        mode: 'cors',
+        credentials: 'include',
       });
 
       const text = await res.text();
@@ -86,7 +82,7 @@ export default function AtlasCredentialsButton({
         setUsuario(data?.atlas_usuario ?? '');
         setEmpresa(data?.atlas_empresa ?? '');
         setSucursal(data?.atlas_sucursal ?? '');
-        setClave(''); // nunca prellenar
+        setClave('');
       }
     } catch (e: any) {
       setServerError(e?.message || 'Error de red al leer credenciales.');
@@ -112,15 +108,14 @@ export default function AtlasCredentialsButton({
     setFieldErrors({});
 
     try {
-      // 👉 PUT a travelconnect.com.ar/agencias/{id}/credenciales
-      const res = await fetch(apiUrl(`/agencias/${agenciaId}/credenciales`), {
+      // ✅ PUT /api/agencias/{id}/credenciales
+      const res = await fetch(apiUrl(`/api/agencias/${agenciaId}/credenciales`), {
         method: 'PUT',
         headers: { ...commonHeaders, 'Content-Type': 'application/json' },
         credentials: 'include',
-        mode: 'cors',
         body: JSON.stringify({
           atlas_usuario:  usuario,
-          atlas_clave:    clave,     // requerido por tu validador actual
+          atlas_clave:    clave,
           atlas_empresa:  empresa,
           atlas_sucursal: sucursal,
         }),
