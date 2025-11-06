@@ -4,7 +4,8 @@
 import * as React from 'react';
 import {
   Button, Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, Stack, Alert, IconButton, InputAdornment, Tooltip, CircularProgress, LinearProgress
+  TextField, Stack, Alert, IconButton, InputAdornment, Tooltip,
+  CircularProgress, LinearProgress
 } from '@mui/material';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
@@ -14,17 +15,15 @@ type Props = {
   initial?: { usuario?: string | null; empresa?: string | null; sucursal?: string | null; };
   onSaved?: (payload: { atlas_usuario: string; atlas_empresa: string; atlas_sucursal: string; }) => void;
   size?: 'small' | 'medium' | 'large';
-  authToken?: string; // opcional si alguna vez querés usar Bearer
+  authToken?: string;
 };
 
-type ValidationErrors = Partial<
-  Record<'atlas_usuario' | 'atlas_clave' | 'atlas_empresa' | 'atlas_sucursal', string[]>
->;
+type ValidationErrors = Partial<Record<'atlas_usuario'|'atlas_clave'|'atlas_empresa'|'atlas_sucursal', string[]>>;
 
-// ✅ same-origin para evitar CORS desde este componente
-const API_BASE = ''; // <- importante: relativo al mismo dominio
+// 👉 API del backend Laravel (travelconnect)
+const API_BASE = 'https://travelconnect.com.ar';
 
-// Helper: evita dobles barras
+// Helper para evitar dobles barras
 const apiUrl = (path: string) => `${API_BASE}${path.startsWith('/') ? '' : '/'}${path}`;
 
 export default function AtlasCredentialsButton({
@@ -43,25 +42,10 @@ export default function AtlasCredentialsButton({
   const [fieldErrors, setFieldErrors] = React.useState<ValidationErrors>({});
 
   // Campos (la clave NO se precarga por seguridad)
-  const [usuario, setUsuario] = React.useState(initial?.usuario ?? '');
-  const [empresa, setEmpresa] = React.useState(initial?.empresa ?? '');
+  const [usuario, setUsuario]   = React.useState(initial?.usuario ?? '');
+  const [empresa, setEmpresa]   = React.useState(initial?.empresa ?? '');
   const [sucursal, setSucursal] = React.useState(initial?.sucursal ?? '');
-  const [clave, setClave] = React.useState('');
-
-  // 🔧 Hotfix local: si falla la carga de un chunk, recarga la página
-  React.useEffect(() => {
-    const onErr = (e: any) => {
-      const isChunkError =
-        e?.message?.includes('ChunkLoadError') ||
-        e?.error?.name === 'ChunkLoadError';
-      if (isChunkError) {
-        // fuerza a pedir el HTML y chunks del build vigente
-        window.location.reload();
-      }
-    };
-    window.addEventListener('error', onErr);
-    return () => window.removeEventListener('error', onErr);
-  }, []);
+  const [clave, setClave]       = React.useState('');
 
   // Refrescar cuando cambian props initial y el diálogo esté cerrado
   React.useEffect(() => {
@@ -73,9 +57,10 @@ export default function AtlasCredentialsButton({
     }
   }, [initial?.usuario, initial?.empresa, initial?.sucursal, open]);
 
-  // Headers comunes (sin Content-Type para GET)
+  // Headers comunes
   const commonHeaders: HeadersInit = {
     Accept: 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
     ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
   };
 
@@ -84,10 +69,12 @@ export default function AtlasCredentialsButton({
     setLoadingInit(true);
     setServerError(null);
     try {
-      const res = await fetch(apiUrl(`/api/atlas/agencias/${agenciaId}/credenciales`), {
+      // 👉 GET a travelconnect.com.ar/agencias/{id}/credenciales
+      const res = await fetch(apiUrl(`/agencias/${agenciaId}/credenciales`), {
         method: 'GET',
         headers: commonHeaders,
-        credentials: 'include', // útil si usás cookies/sesión
+        credentials: 'include',   // si usás cookies/sesión
+        mode: 'cors',
       });
 
       const text = await res.text();
@@ -125,14 +112,16 @@ export default function AtlasCredentialsButton({
     setFieldErrors({});
 
     try {
-      const res = await fetch(apiUrl(`/api/atlas/agencias/${agenciaId}/credenciales`), {
+      // 👉 PUT a travelconnect.com.ar/agencias/{id}/credenciales
+      const res = await fetch(apiUrl(`/agencias/${agenciaId}/credenciales`), {
         method: 'PUT',
         headers: { ...commonHeaders, 'Content-Type': 'application/json' },
-        credentials: 'include', // si usás Bearer puro, podés quitarlo
+        credentials: 'include',
+        mode: 'cors',
         body: JSON.stringify({
-          atlas_usuario: usuario,
-          atlas_clave:   clave,     // requerido por tu validador actual
-          atlas_empresa: empresa,
+          atlas_usuario:  usuario,
+          atlas_clave:    clave,     // requerido por tu validador actual
+          atlas_empresa:  empresa,
           atlas_sucursal: sucursal,
         }),
       });
@@ -167,7 +156,7 @@ export default function AtlasCredentialsButton({
   };
 
   const disabled = !agenciaId;
-  const canSave = !saving && !!usuario && !!empresa && !!sucursal && !!clave;
+  const canSave  = !saving && !!usuario && !!empresa && !!sucursal && !!clave;
 
   return (
     <>
