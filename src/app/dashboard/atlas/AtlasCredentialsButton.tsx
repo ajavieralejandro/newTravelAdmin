@@ -21,8 +21,8 @@ type ValidationErrors = Partial<
   Record<'atlas_usuario' | 'atlas_clave' | 'atlas_empresa' | 'atlas_sucursal', string[]>
 >;
 
-// ❗️Sin barra final — mismo origen de tu app
-const API_BASE = 'https://superadmin.triptest.com.ar';
+// ✅ same-origin para evitar CORS desde este componente
+const API_BASE = ''; // <- importante: relativo al mismo dominio
 
 // Helper: evita dobles barras
 const apiUrl = (path: string) => `${API_BASE}${path.startsWith('/') ? '' : '/'}${path}`;
@@ -47,6 +47,21 @@ export default function AtlasCredentialsButton({
   const [empresa, setEmpresa] = React.useState(initial?.empresa ?? '');
   const [sucursal, setSucursal] = React.useState(initial?.sucursal ?? '');
   const [clave, setClave] = React.useState('');
+
+  // 🔧 Hotfix local: si falla la carga de un chunk, recarga la página
+  React.useEffect(() => {
+    const onErr = (e: any) => {
+      const isChunkError =
+        e?.message?.includes('ChunkLoadError') ||
+        e?.error?.name === 'ChunkLoadError';
+      if (isChunkError) {
+        // fuerza a pedir el HTML y chunks del build vigente
+        window.location.reload();
+      }
+    };
+    window.addEventListener('error', onErr);
+    return () => window.removeEventListener('error', onErr);
+  }, []);
 
   // Refrescar cuando cambian props initial y el diálogo esté cerrado
   React.useEffect(() => {
@@ -76,13 +91,7 @@ export default function AtlasCredentialsButton({
       });
 
       const text = await res.text();
-      const data = (() => {
-        try {
-          return JSON.parse(text);
-        } catch {
-          return null;
-        }
-      })();
+      const data = (() => { try { return JSON.parse(text); } catch { return null; } })();
 
       if (!res.ok) {
         setServerError(data?.error || `No se pudieron cargar las credenciales (HTTP ${res.status}).`);
@@ -97,7 +106,7 @@ export default function AtlasCredentialsButton({
     } finally {
       setLoadingInit(false);
     }
-  }, [agenciaId, authToken]); // authToken por si cambiara en runtime
+  }, [agenciaId, authToken]);
 
   const handleOpen = () => {
     setOkMsg(null);
@@ -118,27 +127,18 @@ export default function AtlasCredentialsButton({
     try {
       const res = await fetch(apiUrl(`/api/atlas/agencias/${agenciaId}/credenciales`), {
         method: 'PUT',
-        headers: {
-          ...commonHeaders,
-          'Content-Type': 'application/json',
-        },
+        headers: { ...commonHeaders, 'Content-Type': 'application/json' },
         credentials: 'include', // si usás Bearer puro, podés quitarlo
         body: JSON.stringify({
           atlas_usuario: usuario,
-          atlas_clave: clave, // requerido por tu validador actual
+          atlas_clave:   clave,     // requerido por tu validador actual
           atlas_empresa: empresa,
           atlas_sucursal: sucursal,
         }),
       });
 
       const text = await res.text();
-      const data = (() => {
-        try {
-          return JSON.parse(text);
-        } catch {
-          return null;
-        }
-      })();
+      const data = (() => { try { return JSON.parse(text); } catch { return null; } })();
 
       if (!res.ok) {
         if (res.status === 422 && data?.details) {
