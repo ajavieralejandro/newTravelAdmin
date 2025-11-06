@@ -14,16 +14,17 @@ type Props = {
   initial?: { usuario?: string | null; empresa?: string | null; sucursal?: string | null; };
   onSaved?: (payload: { atlas_usuario: string; atlas_empresa: string; atlas_sucursal: string; }) => void;
   size?: 'small' | 'medium' | 'large';
-  // (opcional) si alguna vez querés autenticar por token sin cookies:
-  authToken?: string;
+  authToken?: string; // opcional si alguna vez querés usar Bearer
 };
 
-type ValidationErrors = Partial<Record<'atlas_usuario'|'atlas_clave'|'atlas_empresa'|'atlas_sucursal', string[]>>;
+type ValidationErrors = Partial<
+  Record<'atlas_usuario' | 'atlas_clave' | 'atlas_empresa' | 'atlas_sucursal', string[]>
+>;
 
-// ❗️Sin barra final
-const API_BASE = 'https://travelconnect.com.ar';
+// ❗️Sin barra final — mismo origen de tu app
+const API_BASE = 'https://superadmin.triptest.com.ar';
 
-// Helper para evitar dobles barras
+// Helper: evita dobles barras
 const apiUrl = (path: string) => `${API_BASE}${path.startsWith('/') ? '' : '/'}${path}`;
 
 export default function AtlasCredentialsButton({
@@ -42,12 +43,12 @@ export default function AtlasCredentialsButton({
   const [fieldErrors, setFieldErrors] = React.useState<ValidationErrors>({});
 
   // Campos (la clave NO se precarga por seguridad)
-  const [usuario, setUsuario]   = React.useState(initial?.usuario ?? '');
-  const [empresa, setEmpresa]   = React.useState(initial?.empresa ?? '');
+  const [usuario, setUsuario] = React.useState(initial?.usuario ?? '');
+  const [empresa, setEmpresa] = React.useState(initial?.empresa ?? '');
   const [sucursal, setSucursal] = React.useState(initial?.sucursal ?? '');
-  const [clave, setClave]       = React.useState('');
+  const [clave, setClave] = React.useState('');
 
-  // Si cambian las props initial, refrescá el form (cuando el diálogo esté cerrado)
+  // Refrescar cuando cambian props initial y el diálogo esté cerrado
   React.useEffect(() => {
     if (!open) {
       setUsuario(initial?.usuario ?? '');
@@ -57,10 +58,9 @@ export default function AtlasCredentialsButton({
     }
   }, [initial?.usuario, initial?.empresa, initial?.sucursal, open]);
 
+  // Headers comunes (sin Content-Type para GET)
   const commonHeaders: HeadersInit = {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-    'X-Requested-With': 'XMLHttpRequest',
+    Accept: 'application/json',
     ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
   };
 
@@ -72,12 +72,17 @@ export default function AtlasCredentialsButton({
       const res = await fetch(apiUrl(`/api/atlas/agencias/${agenciaId}/credenciales`), {
         method: 'GET',
         headers: commonHeaders,
-        credentials: 'include', // dejalo si usás cookies/sesión; si usás token, no molesta
-        mode: 'cors',
+        credentials: 'include', // útil si usás cookies/sesión
       });
 
       const text = await res.text();
-      const data = (() => { try { return JSON.parse(text); } catch { return null; } })();
+      const data = (() => {
+        try {
+          return JSON.parse(text);
+        } catch {
+          return null;
+        }
+      })();
 
       if (!res.ok) {
         setServerError(data?.error || `No se pudieron cargar las credenciales (HTTP ${res.status}).`);
@@ -92,7 +97,7 @@ export default function AtlasCredentialsButton({
     } finally {
       setLoadingInit(false);
     }
-  }, [agenciaId, authToken]);
+  }, [agenciaId, authToken]); // authToken por si cambiara en runtime
 
   const handleOpen = () => {
     setOkMsg(null);
@@ -111,31 +116,40 @@ export default function AtlasCredentialsButton({
     setFieldErrors({});
 
     try {
-      // ❗️Acá estaba el doble slash: antes `${API_BASE}/api/...`
       const res = await fetch(apiUrl(`/api/atlas/agencias/${agenciaId}/credenciales`), {
         method: 'PUT',
-        headers: commonHeaders,
-        credentials: 'include',
-        mode: 'cors',
+        headers: {
+          ...commonHeaders,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // si usás Bearer puro, podés quitarlo
         body: JSON.stringify({
           atlas_usuario: usuario,
-          atlas_clave:   clave,     // requerido por tu validador actual
+          atlas_clave: clave, // requerido por tu validador actual
           atlas_empresa: empresa,
           atlas_sucursal: sucursal,
         }),
       });
 
       const text = await res.text();
-      const data = (() => { try { return JSON.parse(text); } catch { return null; } })();
+      const data = (() => {
+        try {
+          return JSON.parse(text);
+        } catch {
+          return null;
+        }
+      })();
 
       if (!res.ok) {
         if (res.status === 422 && data?.details) {
           setFieldErrors(data.details as ValidationErrors);
         } else {
           setServerError(
-            (data?.error && data?.details)
-              ? `${data.error}: ${typeof data.details === 'string' ? data.details : JSON.stringify(data.details)}`
-              : data?.error || `Error HTTP ${res.status}`
+            data?.error
+              ? (data?.details
+                  ? `${data.error}: ${typeof data.details === 'string' ? data.details : JSON.stringify(data.details)}`
+                  : data.error)
+              : `Error HTTP ${res.status}`
           );
         }
         setSaving(false);
@@ -153,7 +167,7 @@ export default function AtlasCredentialsButton({
   };
 
   const disabled = !agenciaId;
-  const canSave  = !saving && !!usuario && !!empresa && !!sucursal && !!clave;
+  const canSave = !saving && !!usuario && !!empresa && !!sucursal && !!clave;
 
   return (
     <>
