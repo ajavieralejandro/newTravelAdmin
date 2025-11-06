@@ -3,9 +3,14 @@ const path = require('path');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // si ya tenés "experimental", mantenelo
   experimental: {
     esmExternals: 'loose',
+  },
+  eslint: {
+    ignoreDuringBuilds: true,   // opcional
+  },
+  typescript: {
+    ignoreBuildErrors: true,    // opcional; quitá esto cuando estabilice
   },
   webpack: (config) => {
     // Alias @ -> src
@@ -13,14 +18,11 @@ const nextConfig = {
       ...(config.resolve.alias || {}),
       '@': path.resolve(__dirname, 'src'),
     };
-    // Asegura extensiones TS/TSX
-    if (!config.resolve.extensions.includes('.ts')) config.resolve.extensions.push('.ts');
+    // (estas extensiones normalmente ya están, pero no molesta)
+    if (!config.resolve.extensions.includes('.ts'))  config.resolve.extensions.push('.ts');
     if (!config.resolve.extensions.includes('.tsx')) config.resolve.extensions.push('.tsx');
     return config;
   },
 };
 
-module.exports = {
-  eslint: { ignoreDuringBuilds: true },
-  typescript: { ignoreBuildErrors: true }, // opcional (ojo, omite errores TS)
-};
+module.exports = nextConfig;
