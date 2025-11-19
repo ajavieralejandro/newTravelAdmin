@@ -12,14 +12,34 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
 type Props = {
   agenciaId?: number;
-  initial?: { usuario?: string | null; empresa?: string | null; sucursal?: string | null };
-  onSaved?: (payload: { atlas_usuario: string; atlas_empresa: string; atlas_sucursal: string }) => void;
+  initial?: {
+    usuario?: string | null;
+    empresa?: string | null;
+    sucursal?: string | null;
+    unidad?: string | null;
+    unidad_codigo?: string | null;
+  };
+  onSaved?: (payload: {
+    atlas_usuario: string;
+    atlas_empresa: string;
+    atlas_sucursal: string;
+    atlas_unidad: string;
+    atlas_unidad_codigo: string;
+  }) => void;
   size?: 'small' | 'medium' | 'large';
   authToken?: string;
 };
 
 type ValidationErrors = Partial<
-  Record<'atlas_usuario' | 'atlas_clave' | 'atlas_empresa' | 'atlas_sucursal', string[]>
+  Record<
+    | 'atlas_usuario'
+    | 'atlas_clave'
+    | 'atlas_empresa'
+    | 'atlas_sucursal'
+    | 'atlas_unidad'
+    | 'atlas_unidad_codigo',
+    string[]
+  >
 >;
 
 // ✅ Backend Laravel (API)
@@ -47,6 +67,8 @@ export default function AtlasCredentialsButton({
   const [usuario, setUsuario] = React.useState(initial?.usuario ?? '');
   const [empresa, setEmpresa] = React.useState(initial?.empresa ?? '');
   const [sucursal, setSucursal] = React.useState(initial?.sucursal ?? '');
+  const [unidad, setUnidad] = React.useState(initial?.unidad ?? '');
+  const [unidadCodigo, setUnidadCodigo] = React.useState(initial?.unidad_codigo ?? '');
   const [clave, setClave] = React.useState('');
 
   React.useEffect(() => {
@@ -54,6 +76,8 @@ export default function AtlasCredentialsButton({
       setUsuario(initial?.usuario ?? '');
       setEmpresa(initial?.empresa ?? '');
       setSucursal(initial?.sucursal ?? '');
+      setUnidad(initial?.unidad ?? '');
+      setUnidadCodigo(initial?.unidad_codigo ?? '');
       setClave('');
     }
   }, [initial, open]);
@@ -92,6 +116,8 @@ export default function AtlasCredentialsButton({
         setUsuario(data?.atlas_usuario ?? '');
         setEmpresa(data?.atlas_empresa ?? '');
         setSucursal(data?.atlas_sucursal ?? '');
+        setUnidad(data?.atlas_unidad ?? '');
+        setUnidadCodigo(data?.atlas_unidad_codigo ?? '');
         setClave('');
       }
     } catch (e: any) {
@@ -99,7 +125,7 @@ export default function AtlasCredentialsButton({
     } finally {
       setLoadingInit(false);
     }
-  }, [agenciaId, authToken]);
+  }, [agenciaId, authToken]); // commonHeaders es estable mientras no cambie authToken
 
   const handleOpen = () => {
     setOkMsg(null);
@@ -131,6 +157,8 @@ export default function AtlasCredentialsButton({
             atlas_clave: clave,
             atlas_empresa: empresa,
             atlas_sucursal: sucursal,
+            atlas_unidad: unidad,
+            atlas_unidad_codigo: unidadCodigo,
           }),
         }
       );
@@ -151,7 +179,13 @@ export default function AtlasCredentialsButton({
       }
 
       setOkMsg('Credenciales actualizadas');
-      onSaved?.({ atlas_usuario: usuario, atlas_empresa: empresa, atlas_sucursal: sucursal });
+      onSaved?.({
+        atlas_usuario: usuario,
+        atlas_empresa: empresa,
+        atlas_sucursal: sucursal,
+        atlas_unidad: unidad,
+        atlas_unidad_codigo: unidadCodigo,
+      });
 
       setTimeout(() => setOpen(false), 900);
     } catch (e: any) {
@@ -162,25 +196,41 @@ export default function AtlasCredentialsButton({
   };
 
   const disabled = !agenciaId;
-  const canSave = !saving && usuario && empresa && sucursal && clave;
+  // Clave sigue siendo requerida porque en el backend la validación la marca como required
+  const canSave =
+    !saving &&
+    usuario &&
+    empresa &&
+    sucursal &&
+    unidad &&
+    unidadCodigo &&
+    clave;
 
   return (
     <>
       <Tooltip title={disabled ? 'Falta id de agencia' : 'Ver / actualizar credenciales'}>
         <span>
-          <Button variant="outlined" size={size} onClick={handleOpen} disabled={disabled}>
+          <Button
+            variant="outlined"
+            size={size}
+            onClick={handleOpen}
+            disabled={disabled}
+          >
             Credenciales Atlas
           </Button>
         </span>
       </Tooltip>
 
-      <Dialog open={open} onClose={!saving ? handleClose : undefined} maxWidth="xs" fullWidth>
+      <Dialog
+        open={open}
+        onClose={!saving ? handleClose : undefined}
+        maxWidth="xs"
+        fullWidth
+      >
         <DialogTitle>Credenciales de Atlas</DialogTitle>
         <DialogContent dividers>
-
           {loadingInit && <LinearProgress sx={{ mb: 2 }} />}
           <Stack spacing={2} sx={{ pt: 1 }}>
-
             {serverError && <Alert severity="error">{serverError}</Alert>}
             {okMsg && <Alert severity="success">{okMsg}</Alert>}
 
@@ -231,11 +281,30 @@ export default function AtlasCredentialsButton({
               fullWidth
             />
 
+            <TextField
+              label="Unidad"
+              value={unidad}
+              onChange={(e) => setUnidad(e.target.value)}
+              error={!!fieldErrors.atlas_unidad}
+              helperText={fieldErrors.atlas_unidad?.[0] ?? ''}
+              fullWidth
+            />
+
+            <TextField
+              label="Unidad código"
+              value={unidadCodigo}
+              onChange={(e) => setUnidadCodigo(e.target.value)}
+              error={!!fieldErrors.atlas_unidad_codigo}
+              helperText={fieldErrors.atlas_unidad_codigo?.[0] ?? ''}
+              fullWidth
+            />
           </Stack>
         </DialogContent>
 
         <DialogActions>
-          <Button onClick={handleClose} disabled={saving}>Cancelar</Button>
+          <Button onClick={handleClose} disabled={saving}>
+            Cancelar
+          </Button>
           <Button
             variant="contained"
             onClick={submit}
