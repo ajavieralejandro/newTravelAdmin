@@ -1,18 +1,22 @@
-// src/components/integrations/Page.tsx (o el archivo donde tengas este Page)
 'use client';
 
 import * as React from 'react';
 import {
-  Stack, Typography, Alert, Card, CardHeader, CardContent,
-  Divider, CircularProgress, Box
+  Stack,
+  Typography,
+  Card,
+  CardHeader,
+  CardContent,
+  Divider,
+  Box,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
 
-import { StyledForm } from '@/components/dashboard/Estilos/StyledForm';
 import { useUserContext } from '@/contexts/user-context';
 import { agenciasService } from '@/contexts/features/Agencias/services/agenciasService';
-import { mapFormToPayload } from '@/contexts/features/Agencias/services/agenciaMapper';
 
-// ✅ Nuevo: panel que lista TODAS las integraciones y permite toggles/acciones
+// 🔹 Panel que lista TODAS las integraciones y permite toggles/acciones
 import ApiIntegrationsPanel from './ApiIIntegrationsPanel';
 
 function toNumber(x: unknown): number | undefined {
@@ -23,9 +27,8 @@ function toNumber(x: unknown): number | undefined {
 }
 
 export default function Page(): React.JSX.Element {
-  const { user, agenciaRaw, actualizarAgenciaLocal } = useUserContext();
+  const { user, agenciaRaw } = useUserContext();
 
-  // 🔎 Resolver id de agencia de forma robusta
   const idAgencia = React.useMemo<number | undefined>(() => {
     const candidates = [
       (user as any)?.agencia_id,
@@ -42,78 +45,47 @@ export default function Page(): React.JSX.Element {
     return undefined;
   }, [user, agenciaRaw]);
 
-  const [saving, setSaving] = React.useState(false);
-  const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
-  const [okMsg, setOkMsg] = React.useState<string | null>(null);
-
-  const handleSubmitEstilos = React.useCallback(
-    async (payloadUnknown: unknown) => {
-      const payload = payloadUnknown as ReturnType<typeof mapFormToPayload>;
-      if (!idAgencia) {
-        setErrorMsg('No se pudo resolver el ID de la agencia.');
-        return;
-      }
-      setSaving(true);
-      setErrorMsg(null);
-      setOkMsg(null);
-      try {
-        const back = await agenciasService.update(String(idAgencia), payload);
-        await actualizarAgenciaLocal(back);
-        setOkMsg('Estilos guardados correctamente.');
-      } catch (e: any) {
-        setErrorMsg(e?.message || 'Error al guardar estilos.');
-      } finally {
-        setSaving(false);
-      }
-    },
-    [idAgencia, actualizarAgenciaLocal]
-  );
+  if (!idAgencia) {
+    return (
+      <Stack spacing={2}>
+        <Typography variant="h4">Integraciones</Typography>
+        <Alert severity="warning">
+          No se pudo resolver el ID de la agencia. Revisá la sesión o recargá la página.
+        </Alert>
+      </Stack>
+    );
+  }
 
   return (
     <Stack spacing={3}>
       {/* Título */}
       <Stack spacing={1}>
-        <Typography variant="h4">Configuración de Estilos</Typography>
+        <Typography variant="h4">Integraciones</Typography>
         <Typography variant="body2" color="text.secondary">
-          Ajustá la apariencia del sitio de tu agencia y administrá las integraciones.
+          Administrá las integraciones de tu agencia con proveedores externos (Atlas, TravelGateX,
+          AllSeasons, etc.).
         </Typography>
       </Stack>
 
-      {/* 🔧 Integraciones de la Agencia (NUEVO PANEL) */}
+      {/* Panel de Integraciones de API */}
       <Card variant="outlined">
         <CardHeader
-          title="Integraciones"
-          subheader={idAgencia ? `Agencia #${idAgencia}` : 'Agencia no seleccionada (solo lectura)'}
+          title="APIs conectadas"
+          subheader={`Agencia #${idAgencia}`}
         />
         <Divider />
         <CardContent>
-          {/* Renderiza todas las APIs desde /apis y marca las activas de /api_agencias/{id}/apis */}
-          <ApiIntegrationsPanel agenciaId={idAgencia} />
+          <React.Suspense
+            fallback={
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            }
+          >
+            <ApiIntegrationsPanel agenciaId={idAgencia} />
+          </React.Suspense>
         </CardContent>
       </Card>
-
-      {/* Formulario visual de estilos */}
-      {errorMsg && <Alert severity="error">{errorMsg}</Alert>}
-      {okMsg && <Alert severity="success">{okMsg}</Alert>}
-
-      <Box sx={{ position: 'relative' }}>
-        <StyledForm onSubmitPayload={handleSubmitEstilos} />
-        {saving && (
-          <Box
-            sx={{
-              position: 'absolute',
-              inset: 0,
-              bgcolor: 'rgba(255,255,255,0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 2,
-            }}
-          >
-            <CircularProgress />
-          </Box>
-        )}
-      </Box>
     </Stack>
   );
 }

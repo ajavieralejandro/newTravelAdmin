@@ -11,9 +11,9 @@ export interface NavItem {
   roles: RolUsuario[];
 }
 
-// ✅ NUEVO: ruta de inicio por rol
+// ✅ Ruta de inicio por rol (la dejo igual)
 export const roleDefaultRoute: Record<RolUsuario, string> = {
-  admin: paths.dashboard.atlas,        // o la que prefieras
+  admin: paths.dashboard.atlas,
   superadmin: paths.dashboard.customers,
 };
 
@@ -39,14 +39,25 @@ export const navItems: NavItem[] = [
     icon: 'servicios',
     roles: ['admin','superadmin'],
   },
-  // Si "Estilos" ya no va, podés borrarlo o dejarlo así.
+
+  // 🔹 Estilos ahora tiene SU propia ruta
   {
     label: 'Estilos',
-    href: '/dashboard/integrations',
-    matcher: { type: 'startsWith', href: '/dashboard/integrations' },
+    href: '/dashboard/estilos',
+    matcher: { type: 'startsWith', href: '/dashboard/estilos' },
     icon: 'palette',
     roles: ['admin'],
   },
+
+  // 🔹 Integraciones se queda para cosas de API (Atlas, TravelGateX, etc.)
+  {
+    label: 'Integraciones',
+    href: '/dashboard/integrations',
+    matcher: { type: 'startsWith', href: '/dashboard/integrations' },
+    icon: 'plug',
+    roles: ['admin', 'superadmin'],
+  },
+
   {
     label: 'Paquetes Propios',
     href: '/dashboard/paquetesPropios',
@@ -68,7 +79,6 @@ export const navItems: NavItem[] = [
     icon: 'users',
     roles: ['admin', 'superadmin'],
   },
-  // ✅ NUEVO/CORREGIDO: Atlas (fijate la barra inicial en matcher.href)
   {
     label: 'Atlas',
     href: '/dashboard/atlas',
