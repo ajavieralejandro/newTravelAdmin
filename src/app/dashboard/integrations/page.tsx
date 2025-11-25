@@ -11,12 +11,12 @@ import {
   Box,
   CircularProgress,
   Alert,
+  Chip,
 } from '@mui/material';
 
 import { useUserContext } from '@/contexts/user-context';
-import { agenciasService } from '@/contexts/features/Agencias/services/agenciasService';
 
-// 🔹 Panel que lista TODAS las integraciones y permite toggles/acciones
+// Panel que lista TODAS las integraciones de API (Atlas, TGX, etc.)
 import ApiIntegrationsPanel from './ApiIIntegrationsPanel';
 
 function toNumber(x: unknown): number | undefined {
@@ -49,29 +49,71 @@ export default function Page(): React.JSX.Element {
     return (
       <Stack spacing={2}>
         <Typography variant="h4">Integraciones</Typography>
-        <Alert severity="warning">
+        <Alert severity="warning" variant="outlined">
           No se pudo resolver el ID de la agencia. Revisá la sesión o recargá la página.
         </Alert>
       </Stack>
     );
   }
 
+  const agenciaNombre =
+    (agenciaRaw as any)?.nombre ||
+    (agenciaRaw as any)?.name ||
+    (user as any)?.agenciaNombre ||
+    `Agencia #${idAgencia}`;
+
   return (
     <Stack spacing={3}>
-      {/* Título */}
-      <Stack spacing={1}>
-        <Typography variant="h4">Integraciones</Typography>
+      {/* Encabezado de página */}
+      <Stack spacing={0.5}>
+        <Typography variant="h4" fontWeight={600}>
+          Integraciones
+        </Typography>
         <Typography variant="body2" color="text.secondary">
-          Administrá las integraciones de tu agencia con proveedores externos (Atlas, TravelGateX,
-          AllSeasons, etc.).
+          Configurá las integraciones de tu agencia con proveedores externos de contenido y pagos:
+          Atlas, TravelGateX, AllSeasons, <strong>Mercado Pago</strong>, entre otros.
         </Typography>
       </Stack>
 
-      {/* Panel de Integraciones de API */}
+      {/* Resumen de la agencia / contexto */}
+      <Card variant="outlined">
+        <CardContent>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={2}
+            alignItems={{ xs: 'flex-start', sm: 'center' }}
+            justifyContent="space-between"
+          >
+            <Stack spacing={0.3}>
+              <Typography variant="subtitle2" color="text.secondary">
+                Agencia actual
+              </Typography>
+              <Typography variant="h6">{agenciaNombre}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                ID interno: <strong>#{idAgencia}</strong>
+              </Typography>
+            </Stack>
+
+            <Stack
+              direction="row"
+              spacing={1}
+              flexWrap="wrap"
+              useFlexGap
+            >
+              <Chip size="small" label="Atlas" color="primary" variant="outlined" />
+              <Chip size="small" label="TravelGateX" variant="outlined" />
+              <Chip size="small" label="AllSeasons" variant="outlined" />
+              <Chip size="small" label="Mercado Pago" color="secondary" variant="outlined" />
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      {/* Panel principal de Integraciones de API (incluye Mercado Pago como una de las APIs) */}
       <Card variant="outlined">
         <CardHeader
           title="APIs conectadas"
-          subheader={`Agencia #${idAgencia}`}
+          subheader="Gestioná credenciales, estados y configuración técnica de cada proveedor."
         />
         <Divider />
         <CardContent>
@@ -82,6 +124,11 @@ export default function Page(): React.JSX.Element {
               </Box>
             }
           >
+            {/* 
+              Dentro de ApiIntegrationsPanel es donde deberías asegurar
+              que exista también la sección / tarjeta para la API de Mercado Pago
+              (credenciales, public_key, access_token, modo sandbox, etc.).
+            */}
             <ApiIntegrationsPanel agenciaId={idAgencia} />
           </React.Suspense>
         </CardContent>
