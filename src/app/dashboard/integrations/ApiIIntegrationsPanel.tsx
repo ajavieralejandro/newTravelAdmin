@@ -20,6 +20,13 @@ import {
   Divider,
   Chip,
   Link as MuiLink,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  FormControlLabel,
 } from '@mui/material';
 import SettingsIcon from '@mui/icons-material/Settings';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -31,9 +38,12 @@ import AtlasCredentialsButton from '../atlas/AtlasCredentialsButton';
 
 // ✅ Base ABSOLUTA al backend
 const RAW_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? '').trim();
-const API_BASE = RAW_BASE !== '' ? RAW_BASE.replace(/\/+$/, '') : 'https://travelconnect.com.ar';
-const apiUrl = (path: string) => `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
-const normalize = (s?: string | null) => (s ?? '').toLowerCase().replace(/[\s_-]/g, '');
+const API_BASE =
+  RAW_BASE !== '' ? RAW_BASE.replace(/\/+$/, '') : 'https://travelconnect.com.ar';
+const apiUrl = (path: string) =>
+  `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
+const normalize = (s?: string | null) =>
+  (s ?? '').toLowerCase().replace(/[\s_-]/g, '');
 
 // === Tipos ===
 export type ApiItem = {
@@ -69,6 +79,258 @@ function ActionBtn({ title, onClick, icon, disabled }: ActionBtnProps) {
         </IconButton>
       </span>
     </Tooltip>
+  );
+}
+
+/* =========================================================
+ * MERCADO PAGO: diálogo para ver/editar credenciales
+ *  - GET  /api/mercadopago/agencias/{agencia}/credenciales
+ *  - PUT  /api/mercadopago/agencias/{agencia}/credenciales
+ * ========================================================= */
+
+type MercadoPagoConfig = {
+  public_key: string;
+  sandbox: boolean;
+  notification_url: string;
+};
+
+function MercadoPagoCredentialsButton({
+  agenciaId,
+  onSaved,
+}: {
+  agenciaId?: number;
+  onSaved?: () => void;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const [form, setForm] = React.useState<MercadoPagoConfig>({
+    public_key: '',
+    sandbox: false,
+    notification_url: '',
+  });
+
+  // access_token nunca se muestra, sólo se envía si lo completan
+  const [accessToken, setAccessToken] = React.useState('');
+
+  const handleOpen = () => {
+    if (!agenciaId) return;
+    setOpen(true);
+  };
+
+  const handleClose = () => {
+    if (saving) return;
+    setOpen(false);
+    setError(null);
+    setAccessToken('');
+  };
+
+  const fetchConfig = React.useCallback(async () => {
+    if (!agenciaId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const r = await fetch(
+        apiUrl(`/api/mercadopago/agencias/${agenciaId}/credenciales`),
+        {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        }
+      );
+
+      if (r.status === 404) {
+        // Sin config todavía → dejamos vacíos
+        setForm({
+          public_key: '',
+          sandbox: false,
+          notification_url: '',
+        });
+        return;
+      }
+
+      if (!r.ok) {
+        throw new Error(
+          `GET /api/mercadopago/agencias/${agenciaId}/credenciales → ${r.status}`
+        );
+      }
+
+      const data = await r.json();
+
+      setForm({
+        public_key: data.public_key ?? '',
+        sandbox: !!data.sandbox,
+        notification_url: data.notification_url ?? '',
+      });
+    } catch (e: any) {
+      console.error('Error cargando config MercadoPago:', e);
+      setError(
+        e?.message ||
+          'No se pudieron cargar las credenciales de Mercado Pago para esta agencia.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [agenciaId]);
+
+  React.useEffect(() => {
+    if (open && agenciaId) {
+      void fetchConfig();
+    }
+  }, [open, agenciaId, fetchConfig]);
+
+  const handleSave = async () => {
+    if (!agenciaId) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const payload: any = {
+        public_key: form.public_key || null,
+        sandbox: form.sandbox,
+        notification_url: form.notification_url || null,
+      };
+
+      if (accessToken.trim() !== '') {
+        payload.access_token = accessToken.trim();
+      }
+
+      const r = await fetch(
+        apiUrl(`/api/mercadopago/agencias/${agenciaId}/credenciales`),
+        {
+          method: 'PUT',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!r.ok) {
+        throw new Error(
+          `PUT /api/mercadopago/agencias/${agenciaId}/credenciales → ${r.status}`
+        );
+      }
+
+      onSaved?.();
+      setOpen(false);
+      setAccessToken('');
+    } catch (e: any) {
+      console.error('Error guardando config MercadoPago:', e);
+      setError(e?.message || 'No se pudieron guardar las credenciales de Mercado Pago.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <Tooltip
+        title={
+          agenciaId
+            ? 'Ver / editar credenciales de Mercado Pago de esta agencia'
+            : 'Seleccioná una agencia para configurar Mercado Pago'
+        }
+      >
+        <span>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<PaymentIcon fontSize="small" />}
+            onClick={handleOpen}
+            disabled={!agenciaId}
+            sx={{ borderRadius: 999, textTransform: 'none', fontSize: 12 }}
+          >
+            Credenciales MP
+          </Button>
+        </span>
+      </Tooltip>
+
+      <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
+        <DialogTitle>Credenciales de Mercado Pago</DialogTitle>
+        <DialogContent dividers>
+          {loading ? (
+            <Stack alignItems="center" py={3}>
+              <CircularProgress />
+            </Stack>
+          ) : (
+            <Stack spacing={2} mt={1}>
+              {error && <Alert severity="error">{error}</Alert>}
+
+              <TextField
+                label="Public key"
+                fullWidth
+                size="small"
+                value={form.public_key}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, public_key: e.target.value }))
+                }
+                placeholder="APP_USR-..."
+              />
+
+              <TextField
+                label="Access token"
+                fullWidth
+                size="small"
+                type="password"
+                value={accessToken}
+                onChange={(e) => setAccessToken(e.target.value)}
+                placeholder="Sólo se envía si lo completás (no se muestra nunca)"
+                helperText="Por seguridad, el access token no se devuelve desde el backend. Si lo cargás acá, se actualizará."
+              />
+
+              <TextField
+                label="Notification URL"
+                fullWidth
+                size="small"
+                type="url"
+                value={form.notification_url}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    notification_url: e.target.value,
+                  }))
+                }
+                placeholder="https://travelconnect.com.ar/mercadopago/webhook"
+              />
+
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={form.sandbox}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        sandbox: e.target.checked,
+                      }))
+                    }
+                  />
+                }
+                label="Sandbox (modo prueba)"
+              />
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSave}
+            variant="contained"
+            disabled={saving || loading || !agenciaId}
+            startIcon={saving ? <CircularProgress size={16} /> : <PaymentIcon />}
+          >
+            Guardar
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }
 
@@ -246,10 +508,11 @@ function IntegrationActions({
   if (key === 'mercadopago') {
     return (
       <Stack direction="row" spacing={0.75} alignItems="center">
-        {/* Acá después enchufás tu panel/backend real */}
+        <MercadoPagoCredentialsButton agenciaId={agenciaId} onSaved={onAfter} />
+        {/* opcional: mantener acceso al panel clásico si existe */}
         <ActionBtn
-          title="Ir al panel de configuración de Mercado Pago"
-          onClick={() => openInNew(apiUrl('/mercadopago'))} // ajustá cuando tengas ruta real
+          title="Abrir panel clásico de Mercado Pago"
+          onClick={() => openInNew(apiUrl('/mercadopago'))}
           icon={<PaymentIcon fontSize="small" />}
         />
       </Stack>
@@ -293,7 +556,8 @@ export default function ApiIntegrationsPanel({ agenciaId }: Props) {
         const rAgency = await fetch(apiUrl(`/api_agencias/${agenciaId}/apis`), {
           credentials: 'include',
         });
-        if (!rAgency.ok) throw new Error(`GET /api_agencias/${agenciaId}/apis HTTP ${rAgency.status}`);
+        if (!rAgency.ok)
+          throw new Error(`GET /api_agencias/${agenciaId}/apis HTTP ${rAgency.status}`);
         const agencyApis: ApiItem[] = await rAgency.json();
         setEnabledIds(new Set(agencyApis.map((a) => a.id)));
       } else {
@@ -329,7 +593,8 @@ export default function ApiIntegrationsPanel({ agenciaId }: Props) {
           credentials: 'include',
           body: JSON.stringify({ api_ids: [api.id] }),
         });
-        if (!r.ok) throw new Error(`POST /api_agencias/${agenciaId}/apis HTTP ${r.status}`);
+        if (!r.ok)
+          throw new Error(`POST /api_agencias/${agenciaId}/apis HTTP ${r.status}`);
         setEnabledIds((prev) => new Set(prev).add(api.id));
       } else {
         // Desactivar => DELETE detach
@@ -338,7 +603,10 @@ export default function ApiIntegrationsPanel({ agenciaId }: Props) {
           headers: { 'X-Requested-With': 'XMLHttpRequest' },
           credentials: 'include',
         });
-        if (!r.ok) throw new Error(`DELETE /api_agencias/${agenciaId}/apis/${api.id} HTTP ${r.status}`);
+        if (!r.ok)
+          throw new Error(
+            `DELETE /api_agencias/${agenciaId}/apis/${api.id} HTTP ${r.status}`
+          );
         setEnabledIds((prev) => {
           const n = new Set(prev);
           n.delete(api.id);
@@ -447,7 +715,11 @@ export default function ApiIntegrationsPanel({ agenciaId }: Props) {
                             target="_blank"
                             rel="noopener"
                             underline="hover"
-                            sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
+                            sx={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 0.5,
+                            }}
                           >
                             <LinkIcon fontSize="small" />
                             <Typography variant="body2">endpoint</Typography>
@@ -461,7 +733,11 @@ export default function ApiIntegrationsPanel({ agenciaId }: Props) {
                             target="_blank"
                             rel="noopener"
                             underline="hover"
-                            sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
+                            sx={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 0.5,
+                            }}
                           >
                             <LinkIcon fontSize="small" />
                             <Typography variant="body2">listar</Typography>
@@ -473,7 +749,11 @@ export default function ApiIntegrationsPanel({ agenciaId }: Props) {
                             target="_blank"
                             rel="noopener"
                             underline="hover"
-                            sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
+                            sx={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 0.5,
+                            }}
                           >
                             <LinkIcon fontSize="small" />
                             <Typography variant="body2">paquetes</Typography>
@@ -485,7 +765,11 @@ export default function ApiIntegrationsPanel({ agenciaId }: Props) {
                             target="_blank"
                             rel="noopener"
                             underline="hover"
-                            sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
+                            sx={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 0.5,
+                            }}
                           >
                             <PaymentIcon fontSize="small" />
                             <Typography variant="body2">panel MP</Typography>
@@ -495,7 +779,7 @@ export default function ApiIntegrationsPanel({ agenciaId }: Props) {
                     }
                     secondary={
                       key === 'mercadopago'
-                        ? 'Usá el switch para habilitar o deshabilitar los cobros con Mercado Pago para esta agencia.'
+                        ? 'Usá el switch para habilitar o deshabilitar los cobros con Mercado Pago y el botón para editar las credenciales.'
                         : api.descripcion ?? ''
                     }
                   />
