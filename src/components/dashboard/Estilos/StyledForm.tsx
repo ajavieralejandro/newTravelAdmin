@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Box, Stack, LinearProgress, Typography } from '@mui/material';
+import { Box, Stack, LinearProgress, Typography, Fade } from '@mui/material';
 import { FormProvider, useForm } from 'react-hook-form';
 
 import { useUserContext } from '@/contexts/user-context';
@@ -23,15 +23,29 @@ import { BannerRegistroSection } from './BannerRegistroSection';
 import { ArchivosMultimediaSection } from './ArchivosMultimediaSection';
 import { FooterSection } from './FooterSection';
 
+export type EstilosSectionId =
+  | 'branding'
+  | 'colores'
+  | 'home'
+  | 'componentes';
+
 type StyledFormProps = {
   /**
    * Handler para persistir.
    * Recibe el payload ya mapeado por mapFormToPayload.
    */
   onSubmitPayload?: (payload: unknown) => Promise<void> | void;
+
+  /**
+   * Sección activa elegida desde el sidebar.
+   */
+  activeSection: EstilosSectionId;
 };
 
-export function StyledForm({ onSubmitPayload }: StyledFormProps): React.JSX.Element {
+export function StyledForm({
+  onSubmitPayload,
+  activeSection,
+}: StyledFormProps): React.JSX.Element {
   const { agenciaView, isLoading } = useUserContext();
 
   const methods = useForm<AgenciaFormValues>({
@@ -97,20 +111,55 @@ export function StyledForm({ onSubmitPayload }: StyledFormProps): React.JSX.Elem
         onSubmit={onSubmit}
         noValidate
       >
-        <Stack spacing={4} py={1}>
-          {/* Cada sección puede tener su propio id para el sidebar */}
-          {/* DatosGeneralesSection ya puede tener id="estilos-generales" adentro */}
-          <DatosGeneralesSection />
-          <IdentidadVisualSection />
-          <PaletaColoresSection />
-          <EncabezadoSection />
-          <BuscadorSection />
-          <PublicidadClienteSection />
-          <TarjetasSection />
-          <BannerRegistroSection />
-          <ArchivosMultimediaSection />
-          <FooterSection />
-        </Stack>
+        {/* Animación al cambiar de sección */}
+        <Fade
+          in
+          appear
+          timeout={220}
+          key={activeSection}
+        >
+          <Stack spacing={4} py={1}>
+            {/* 
+              División más realista por sección.
+              Todo sigue siendo un solo form; solo cambias lo que se muestra.
+            */}
+
+            {/* BRANDING: nombre, identidad, logos, archivos */}
+            {activeSection === 'branding' && (
+              <>
+                <DatosGeneralesSection />
+                <IdentidadVisualSection />
+                <ArchivosMultimediaSection />
+              </>
+            )}
+
+            {/* COLORES: paleta + ajustes visuales que dependan de color */}
+            {activeSection === 'colores' && (
+              <>
+                <PaletaColoresSection />
+                {/* Si tu EncabezadoSection tiene temas de color, lo podés dejar acá también */}
+              </>
+            )}
+
+            {/* HOME: portada, hero, banner de registro, buscador */}
+            {activeSection === 'home' && (
+              <>
+                <EncabezadoSection />
+                <BannerRegistroSection />
+                <BuscadorSection />
+              </>
+            )}
+
+            {/* COMPONENTES: tarjetas, publicidad, footer, etc. */}
+            {activeSection === 'componentes' && (
+              <>
+                <TarjetasSection />
+                <PublicidadClienteSection />
+                <FooterSection />
+              </>
+            )}
+          </Stack>
+        </Fade>
       </Box>
     </FormProvider>
   );

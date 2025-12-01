@@ -20,12 +20,11 @@ import {
 } from '@mui/material';
 
 import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined';
-import TextFieldsOutlinedIcon from '@mui/icons-material/TextFieldsOutlined';
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import ViewCarouselOutlinedIcon from '@mui/icons-material/ViewCarouselOutlined';
 import WebAssetOutlinedIcon from '@mui/icons-material/WebAssetOutlined';
 
-import { StyledForm } from '@/components/dashboard/Estilos/StyledForm';
+import { StyledForm, type EstilosSectionId } from '@/components/dashboard/Estilos/StyledForm';
 import { useUserContext } from '@/contexts/user-context';
 import { agenciasService } from '@/contexts/features/Agencias/services/agenciasService';
 import { mapFormToPayload } from '@/contexts/features/Agencias/services/agenciaMapper';
@@ -37,13 +36,6 @@ function toNumber(x: unknown): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-type EstilosSectionId =
-  | 'colores'
-  | 'tipografia'
-  | 'logos'
-  | 'hero'
-  | 'componentes';
-
 const ESTILOS_SECTIONS: {
   id: EstilosSectionId;
   label: string;
@@ -51,33 +43,27 @@ const ESTILOS_SECTIONS: {
   icon: React.ReactNode;
 }[] = [
   {
-    id: 'colores',
-    label: 'Colores',
-    description: 'Paleta principal, fondos, acentos.',
-    icon: <PaletteOutlinedIcon fontSize="small" />,
-  },
-  {
-    id: 'tipografia',
-    label: 'Tipografía',
-    description: 'Fuentes, tamaños y pesos de texto.',
-    icon: <TextFieldsOutlinedIcon fontSize="small" />,
-  },
-  {
-    id: 'logos',
-    label: 'Logos e íconos',
-    description: 'Logo principal, variantes y favicon.',
+    id: 'branding',
+    label: 'Branding',
+    description: 'Nombre, identidad visual, logos y archivos.',
     icon: <ImageOutlinedIcon fontSize="small" />,
   },
   {
-    id: 'hero',
-    label: 'Portada / Hero',
-    description: 'Imagen principal, títulos y slogans.',
+    id: 'colores',
+    label: 'Colores',
+    description: 'Paleta principal, fondos y acentos.',
+    icon: <PaletteOutlinedIcon fontSize="small" />,
+  },
+  {
+    id: 'home',
+    label: 'Portada / Home',
+    description: 'Hero, banner de registro y buscador.',
     icon: <ViewCarouselOutlinedIcon fontSize="small" />,
   },
   {
     id: 'componentes',
-    label: 'Componentes del sitio',
-    description: 'Cards, botones, banners y layouts.',
+    label: 'Componentes',
+    description: 'Tarjetas, publicidad y footer.',
     icon: <WebAssetOutlinedIcon fontSize="small" />,
   },
 ];
@@ -105,7 +91,7 @@ export default function Page(): React.JSX.Element {
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [okMsg, setOkMsg] = React.useState<string | null>(null);
   const [activeSection, setActiveSection] =
-    React.useState<EstilosSectionId>('colores');
+    React.useState<EstilosSectionId>('branding');
 
   const hasAgencia = Boolean(idAgencia);
 
@@ -137,10 +123,11 @@ export default function Page(): React.JSX.Element {
 
   const handleClickSection = (id: EstilosSectionId) => {
     setActiveSection(id);
-    // Si las secciones tienen IDs en el DOM, hacemos scroll suave
-    const el = document.getElementById(`estilos-${id}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // Opcional: scroll al formulario cuando cambiás de sección
+    const formEl = document.getElementById('estilos-form');
+    if (formEl) {
+      formEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
@@ -182,8 +169,8 @@ export default function Page(): React.JSX.Element {
               Configuración de estilos
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Organizamos la configuración en secciones: colores, tipografía,
-              logos, portada y componentes visuales del sitio público.
+              Organizamos la configuración en secciones: branding, colores,
+              portada y componentes visuales del sitio público.
             </Typography>
           </Stack>
 
@@ -251,11 +238,7 @@ export default function Page(): React.JSX.Element {
         <Divider />
 
         <CardContent>
-          <Box
-            sx={{
-              position: 'relative',
-            }}
-          >
+          <Box sx={{ position: 'relative' }}>
             <Stack
               direction={{ xs: 'column', md: 'row' }}
               spacing={3}
@@ -338,15 +321,15 @@ export default function Page(): React.JSX.Element {
                   minWidth: 0,
                 }}
               >
-                {/* IMPORTANTE: StyledForm sigue siendo un único form,
-                    pero adentro vamos a dividir en secciones con IDs */}
-                <StyledForm onSubmitPayload={handleSubmitEstilos} />
+                <StyledForm
+                  activeSection={activeSection}
+                  onSubmitPayload={handleSubmitEstilos}
+                />
 
-                {/* Botón de guardado general, abajo de todo */}
                 <Box sx={{ mt: 3, textAlign: 'right' }}>
                   <Button
                     type="submit"
-                    form="estilos-form" // si tu StyledForm expone un id de form, si no lo quitás
+                    form="estilos-form"
                     variant="contained"
                     color="primary"
                     disabled={saving || !hasAgencia}
@@ -358,7 +341,6 @@ export default function Page(): React.JSX.Element {
               </Box>
             </Stack>
 
-            {/* Overlay cuando guarda o cuando no hay agencia */}
             {(saving || !hasAgencia) && (
               <Box
                 sx={(theme) => ({
