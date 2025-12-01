@@ -3,9 +3,26 @@
 
 import * as React from 'react';
 import {
-  Card, CardHeader, CardContent, Divider, TextField, InputAdornment, IconButton,
-  Table, TableBody, TableCell, TableHead, TableRow, TableContainer, TablePagination,
-  LinearProgress, Stack, Chip, Alert
+  Card,
+  CardHeader,
+  CardContent,
+  Divider,
+  TextField,
+  InputAdornment,
+  IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TableContainer,
+  TablePagination,
+  LinearProgress,
+  Stack,
+  Chip,
+  Alert,
+  Typography,
+  Box,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -29,7 +46,9 @@ type AtlasResponse = {
 };
 
 const DEBUG = true;
-const log = (...a: any[]) => { if (DEBUG) console.debug('[AtlasPackagesTable]', ...a); };
+const log = (...a: any[]) => {
+  if (DEBUG) console.debug('[AtlasPackagesTable]', ...a);
+};
 
 function toNumber(x: unknown): number | null {
   if (x == null) return null;
@@ -38,9 +57,12 @@ function toNumber(x: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-async function fetchPaquetes(agenciaId: number, signal?: AbortSignal): Promise<AtlasResponse> {
+async function fetchPaquetes(
+  agenciaId: number,
+  signal?: AbortSignal
+): Promise<AtlasResponse> {
   const base = process.env.NEXT_PUBLIC_API_BASE ?? 'https://travelconnect.com.ar/api';
-  const url  = `${base}/atlas/agencias/${agenciaId}/importar-paquetes`;
+  const url = `${base}/atlas/agencias/${agenciaId}/importar-paquetes`;
 
   log('fetch →', { url, method: 'POST' });
 
@@ -69,12 +91,15 @@ async function fetchPaquetes(agenciaId: number, signal?: AbortSignal): Promise<A
 
   return {
     ok: Boolean(json?.ok),
-    cant: Number(json?.cant ?? (Array.isArray(json?.items) ? json.items.length : 0)),
+    cant: Number(
+      json?.cant ?? (Array.isArray(json?.items) ? json.items.length : 0)
+    ),
     items: Array.isArray(json?.items) ? (json.items as AtlasItem[]) : [],
     agencia: typeof json?.agencia === 'string' ? json.agencia : undefined,
     endpoint: typeof json?.endpoint === 'string' ? json.endpoint : undefined,
-    tiempo_ms: typeof json?.tiempo_ms === 'number' ? json.tiempo_ms : undefined,
-    payload_enviado: json?.payload_enviado
+    tiempo_ms:
+      typeof json?.tiempo_ms === 'number' ? json.tiempo_ms : undefined,
+    payload_enviado: json?.payload_enviado,
   };
 }
 
@@ -91,7 +116,9 @@ export function AtlasPackagesTable({
   }, [idAgencia]);
 
   const [rows, setRows] = React.useState<AtlasItem[]>([]);
-  const [meta, setMeta] = React.useState<Pick<AtlasResponse, 'ok' | 'cant' | 'agencia' | 'tiempo_ms'>>({});
+  const [meta, setMeta] = React.useState<
+    Pick<AtlasResponse, 'ok' | 'cant' | 'agencia' | 'tiempo_ms'>
+  >({});
   const [loading, setLoading] = React.useState(false);
   const [q, setQ] = React.useState('');
   const [page, setPage] = React.useState(0);
@@ -129,10 +156,24 @@ export function AtlasPackagesTable({
     try {
       const data = await fetchPaquetes(agenciaNumericId, ctrl.signal);
       log('load() OK → items:', data.items?.length, 'meta:', {
-        ok: data.ok, cant: data.cant, agencia: data.agencia, tiempo_ms: data.tiempo_ms
+        ok: data.ok,
+        cant: data.cant,
+        agencia: data.agencia,
+        tiempo_ms: data.tiempo_ms,
       });
-      setRows(data.items ?? []);
-      setMeta({ ok: data.ok, cant: data.cant, agencia: data.agencia, tiempo_ms: data.tiempo_ms });
+
+      // Podés ordenar si querés por ID o algo más
+      const ordered = [...(data.items ?? [])].sort(
+        (a, b) => a.paquete_id - b.paquete_id
+      );
+
+      setRows(ordered);
+      setMeta({
+        ok: data.ok,
+        cant: data.cant,
+        agencia: data.agencia,
+        tiempo_ms: data.tiempo_ms,
+      });
       setPage(0);
     } catch (e: any) {
       if (e?.name === 'AbortError') {
@@ -171,18 +212,25 @@ export function AtlasPackagesTable({
   }, [agenciaNumericId, load]);
 
   // Logs auxiliares
-  React.useEffect(() => { log('rows changed →', rows.length); }, [rows]);
-  React.useEffect(() => { log('search query changed →', q); }, [q]);
-  React.useEffect(() => { log('pagination changed →', { page, rowsPerPage }); }, [page, rowsPerPage]);
+  React.useEffect(() => {
+    log('rows changed →', rows.length);
+  }, [rows]);
+  React.useEffect(() => {
+    log('search query changed →', q);
+  }, [q]);
+  React.useEffect(() => {
+    log('pagination changed →', { page, rowsPerPage });
+  }, [page, rowsPerPage]);
 
   const filtered = React.useMemo(() => {
     if (!q) return rows;
     const needle = q.toLowerCase();
-    return rows.filter(p =>
-      (p.titulo ?? '').toLowerCase().includes(needle) ||
-      (p.paquete_externo_id ?? '').toLowerCase().includes(needle) ||
-      String(p.paquete_id).includes(needle) ||
-      String(p.salida_id ?? '').includes(needle)
+    return rows.filter(
+      (p) =>
+        (p.titulo ?? '').toLowerCase().includes(needle) ||
+        (p.paquete_externo_id ?? '').toLowerCase().includes(needle) ||
+        String(p.paquete_id).includes(needle) ||
+        String(p.salida_id ?? '').includes(needle)
     );
   }, [rows, q]);
 
@@ -192,16 +240,36 @@ export function AtlasPackagesTable({
   }, [filtered, page, rowsPerPage]);
 
   const sub = agenciaNumericId
-    ? `(Agencia #${agenciaNumericId})`
+    ? meta.agencia
+      ? `Agencia #${agenciaNumericId} · ${meta.agencia}`
+      : `(Agencia #${agenciaNumericId})`
     : 'Ingresá/seleccioná un ID de agencia válido';
 
   return (
-    <Card>
+    <Card elevation={2}>
       <CardHeader
-        title="Paquetes importados desde Atlas"
+        title={
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="h6">Paquetes importados desde Atlas</Typography>
+            {meta.endpoint && (
+              <Chip
+                size="small"
+                variant="outlined"
+                label="Atlas API"
+                sx={{ fontSize: 10 }}
+              />
+            )}
+          </Stack>
+        }
         subheader={sub}
         action={
-          <IconButton onClick={() => { log('click recargar'); void load(); }} aria-label="recargar">
+          <IconButton
+            onClick={() => {
+              log('click recargar');
+              void load();
+            }}
+            aria-label="recargar"
+          >
             <RefreshIcon />
           </IconButton>
         }
@@ -210,69 +278,125 @@ export function AtlasPackagesTable({
       <CardContent>
         {!agenciaNumericId && (
           <Alert severity="info" sx={{ mb: 2 }}>
-            Ingresá/seleccioná un <strong>ID de agencia</strong> válido para iniciar la consulta.
+            Ingresá/seleccioná un <strong>ID de agencia</strong> válido para iniciar
+            la consulta.
           </Alert>
         )}
 
-        <Stack direction="row" spacing={1} sx={{ mb: 1 }} alignItems="center" flexWrap="wrap">
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{ mb: 1 }}
+          alignItems="center"
+          flexWrap="wrap"
+        >
           {typeof meta.ok === 'boolean' && (
-            <Chip size="small" label={meta.ok ? 'OK' : 'ERROR'} color={meta.ok ? 'success' : 'error'} />
+            <Chip
+              size="small"
+              label={meta.ok ? 'OK' : 'ERROR'}
+              color={meta.ok ? 'success' : 'error'}
+            />
           )}
-          {typeof meta.cant === 'number' && <Chip size="small" label={`Items: ${meta.cant}`} />}
-          {typeof meta.tiempo_ms === 'number' && <Chip size="small" label={`Tiempo: ${meta.tiempo_ms} ms`} />}
-          <Chip size="small" label={`rows: ${rows.length}`} />
-          <Chip size="small" label={`loading: ${String(loading)}`} />
+          {typeof meta.cant === 'number' && (
+            <Chip size="small" label={`Items totales: ${meta.cant}`} />
+          )}
+          {typeof meta.tiempo_ms === 'number' && (
+            <Chip size="small" label={`Tiempo: ${meta.tiempo_ms} ms`} />
+          )}
+          <Chip size="small" label={`Filas en tabla: ${rows.length}`} />
+          <Chip size="small" label={loading ? 'Cargando…' : 'Listo'} />
         </Stack>
 
         <TextField
           fullWidth
           placeholder="Buscar por título, ID paquete, ID externo o ID de salida…"
           value={q}
-          onChange={(e) => { setQ(e.target.value); setPage(0); }}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setPage(0);
+          }}
           InputProps={{
             startAdornment: (
-              <InputAdornment position="start"><SearchIcon /></InputAdornment>
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
             ),
           }}
           sx={{ mb: 2 }}
         />
 
         {loading && <LinearProgress sx={{ mb: 2 }} />}
-        {error && !loading && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        {error && !loading && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
 
-        <TableContainer>
-          <Table size="small">
+        <TableContainer sx={{ maxHeight: 480 }}>
+          <Table size="small" stickyHeader>
             <TableHead>
               <TableRow>
                 <TableCell>Paquete</TableCell>
                 <TableCell>ID externo</TableCell>
                 <TableCell>Salida ID</TableCell>
-                <TableCell>Estado</TableCell>
+                <TableCell align="center">Estado</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {pageRows.map((p) => (
-                <TableRow key={`${p.paquete_id}-${p.salida_id ?? 's'}`} hover>
+                <TableRow
+                  key={`${p.paquete_id}-${p.salida_id ?? 's'}`}
+                  hover
+                  sx={{ cursor: 'default' }}
+                >
                   <TableCell>
                     <Stack spacing={0.5}>
-                      <strong>{p.titulo ?? '—'}</strong>
-                      <span style={{ opacity: 0.7, fontSize: 12 }}>Paquete #{p.paquete_id}</span>
+                      <Typography variant="body2" fontWeight={600}>
+                        {p.titulo ?? '—'}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{ opacity: 0.7 }}
+                      >{`Paquete #${p.paquete_id}`}</Typography>
                     </Stack>
                   </TableCell>
-                  <TableCell>{p.paquete_externo_id ?? '—'}</TableCell>
-                  <TableCell>{p.salida_id ?? '—'}</TableCell>
                   <TableCell>
-                    {typeof p.creado === 'boolean'
-                      ? <Chip size="small" label={p.creado ? 'Creado' : 'No creado'} color={p.creado ? 'success' : 'default'} />
-                      : '—'}
+                    <Typography variant="body2">
+                      {p.paquete_externo_id ?? '—'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">
+                      {p.salida_id ?? '—'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="center">
+                    {typeof p.creado === 'boolean' ? (
+                      <Chip
+                        size="small"
+                        label={p.creado ? 'Creado' : 'No creado'}
+                        color={p.creado ? 'success' : 'default'}
+                        variant={p.creado ? 'filled' : 'outlined'}
+                      />
+                    ) : (
+                      <Typography variant="body2">—</Typography>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
 
               {!loading && pageRows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} align="center" sx={{ py: 6, opacity: 0.7 }}>
-                    Sin resultados.
+                  <TableCell
+                    colSpan={4}
+                    align="center"
+                    sx={{ py: 6, opacity: 0.7 }}
+                  >
+                    <Box>
+                      <Typography variant="body2">
+                        Sin resultados para la búsqueda actual.
+                      </Typography>
+                    </Box>
                   </TableCell>
                 </TableRow>
               )}
@@ -286,8 +410,12 @@ export function AtlasPackagesTable({
           page={page}
           onPageChange={(_, p) => setPage(p)}
           rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={(e) => { setRpp(parseInt(e.target.value, 10)); setPage(0); }}
+          onRowsPerPageChange={(e) => {
+            setRpp(parseInt(e.target.value, 10));
+            setPage(0);
+          }}
           rowsPerPageOptions={[10, 25, 50]}
+          labelRowsPerPage="Filas por página"
         />
       </CardContent>
     </Card>

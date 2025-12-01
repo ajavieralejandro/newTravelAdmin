@@ -12,7 +12,18 @@ import {
   Box,
   CircularProgress,
   Chip,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Button,
 } from '@mui/material';
+
+import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined';
+import TextFieldsOutlinedIcon from '@mui/icons-material/TextFieldsOutlined';
+import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
+import ViewCarouselOutlinedIcon from '@mui/icons-material/ViewCarouselOutlined';
+import WebAssetOutlinedIcon from '@mui/icons-material/WebAssetOutlined';
 
 import { StyledForm } from '@/components/dashboard/Estilos/StyledForm';
 import { useUserContext } from '@/contexts/user-context';
@@ -25,6 +36,51 @@ function toNumber(x: unknown): number | undefined {
   const n = parseInt(String(x).trim(), 10);
   return Number.isFinite(n) ? n : undefined;
 }
+
+type EstilosSectionId =
+  | 'colores'
+  | 'tipografia'
+  | 'logos'
+  | 'hero'
+  | 'componentes';
+
+const ESTILOS_SECTIONS: {
+  id: EstilosSectionId;
+  label: string;
+  description?: string;
+  icon: React.ReactNode;
+}[] = [
+  {
+    id: 'colores',
+    label: 'Colores',
+    description: 'Paleta principal, fondos, acentos.',
+    icon: <PaletteOutlinedIcon fontSize="small" />,
+  },
+  {
+    id: 'tipografia',
+    label: 'Tipografía',
+    description: 'Fuentes, tamaños y pesos de texto.',
+    icon: <TextFieldsOutlinedIcon fontSize="small" />,
+  },
+  {
+    id: 'logos',
+    label: 'Logos e íconos',
+    description: 'Logo principal, variantes y favicon.',
+    icon: <ImageOutlinedIcon fontSize="small" />,
+  },
+  {
+    id: 'hero',
+    label: 'Portada / Hero',
+    description: 'Imagen principal, títulos y slogans.',
+    icon: <ViewCarouselOutlinedIcon fontSize="small" />,
+  },
+  {
+    id: 'componentes',
+    label: 'Componentes del sitio',
+    description: 'Cards, botones, banners y layouts.',
+    icon: <WebAssetOutlinedIcon fontSize="small" />,
+  },
+];
 
 export default function Page(): React.JSX.Element {
   const { user, agenciaRaw, actualizarAgenciaLocal } = useUserContext();
@@ -48,6 +104,10 @@ export default function Page(): React.JSX.Element {
   const [saving, setSaving] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [okMsg, setOkMsg] = React.useState<string | null>(null);
+  const [activeSection, setActiveSection] =
+    React.useState<EstilosSectionId>('colores');
+
+  const hasAgencia = Boolean(idAgencia);
 
   const handleSubmitEstilos = React.useCallback(
     async (payloadUnknown: unknown) => {
@@ -75,12 +135,25 @@ export default function Page(): React.JSX.Element {
     [idAgencia, actualizarAgenciaLocal]
   );
 
-  const hasAgencia = Boolean(idAgencia);
+  const handleClickSection = (id: EstilosSectionId) => {
+    setActiveSection(id);
+    // Si las secciones tienen IDs en el DOM, hacemos scroll suave
+    const el = document.getElementById(`estilos-${id}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   return (
-    <Stack spacing={3}>
-      {/* Header principal */}
-      <Stack spacing={0.5}>
+    <Stack
+      spacing={3}
+      sx={{
+        maxWidth: 1200,
+        mx: 'auto',
+      }}
+    >
+      {/* ===== Header principal ===== */}
+      <Stack spacing={1}>
         <Typography
           component="p"
           variant="overline"
@@ -93,15 +166,26 @@ export default function Page(): React.JSX.Element {
           Panel · Branding
         </Typography>
 
-        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-          <Typography
-            variant="h4"
-            sx={{
-              fontWeight: 700,
-            }}
-          >
-            Configuración de estilos
-          </Typography>
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          spacing={2}
+        >
+          <Stack spacing={0.5}>
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 700,
+              }}
+            >
+              Configuración de estilos
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Organizamos la configuración en secciones: colores, tipografía,
+              logos, portada y componentes visuales del sitio público.
+            </Typography>
+          </Stack>
 
           <Chip
             size="small"
@@ -114,28 +198,22 @@ export default function Page(): React.JSX.Element {
             variant={hasAgencia ? 'filled' : 'outlined'}
           />
         </Stack>
-
-        <Typography variant="body2" color="text.secondary">
-          Ajustá paleta de colores, tipografías, logos, headers e imágenes destacadas
-          del sitio público de tu agencia.
-        </Typography>
       </Stack>
 
-      {/* Mensajes de estado */}
+      {/* ===== Mensajes de estado ===== */}
       <Stack spacing={1}>
         {errorMsg && <Alert severity="error">{errorMsg}</Alert>}
         {okMsg && <Alert severity="success">{okMsg}</Alert>}
 
         {!hasAgencia && (
           <Alert severity="info" variant="outlined">
-            No se detectó una agencia asociada al usuario actual. Podés revisar la
-            información de la cuenta o seleccionar una agencia desde el panel de
-            administración para aplicar estos estilos.
+            No se detectó una agencia asociada al usuario actual. Vinculá una
+            agencia desde el panel de administración para aplicar estos estilos.
           </Alert>
         )}
       </Stack>
 
-      {/* Card principal */}
+      {/* ===== Card principal con layout por secciones ===== */}
       <Card
         variant="outlined"
         sx={{
@@ -151,8 +229,14 @@ export default function Page(): React.JSX.Element {
               </Typography>
               <Chip
                 size="small"
-                label={saving ? 'Guardando…' : 'Edición local'}
-                color={saving ? 'info' : 'default'}
+                label={
+                  saving
+                    ? 'Guardando…'
+                    : hasAgencia
+                    ? 'Edición sobre agencia vinculada'
+                    : 'Solo lectura'
+                }
+                color={saving ? 'info' : hasAgencia ? 'default' : 'warning'}
                 variant="outlined"
               />
             </Stack>
@@ -160,42 +244,155 @@ export default function Page(): React.JSX.Element {
           subheader={
             hasAgencia
               ? 'Los cambios se aplican al front público de esta agencia.'
-              : 'Vista de solo lectura hasta que se vincule una agencia.'
+              : 'Vinculá una agencia para habilitar la edición de estilos.'
           }
         />
+
         <Divider />
 
         <CardContent>
           <Box
             sx={{
               position: 'relative',
-              pt: 1,
             }}
           >
-            <StyledForm onSubmitPayload={handleSubmitEstilos} />
-
-            {saving && (
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={3}
+              alignItems="flex-start"
+            >
+              {/* ==== Navegación lateral por secciones ==== */}
               <Box
                 sx={{
+                  width: { xs: '100%', md: 260 },
+                  flexShrink: 0,
+                  borderRadius: 2,
+                  border: (theme) => `1px solid ${theme.palette.divider}`,
+                  bgcolor: (theme) =>
+                    theme.palette.mode === 'light'
+                      ? 'grey.50'
+                      : 'background.paper',
+                }}
+              >
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    px: 2,
+                    pt: 1.5,
+                    pb: 1,
+                    textTransform: 'uppercase',
+                    letterSpacing: '.12em',
+                    fontSize: 11,
+                    color: 'text.secondary',
+                  }}
+                >
+                  Secciones
+                </Typography>
+                <Divider />
+                <List dense disablePadding>
+                  {ESTILOS_SECTIONS.map((sec) => (
+                    <ListItemButton
+                      key={sec.id}
+                      selected={activeSection === sec.id}
+                      onClick={() => handleClickSection(sec.id)}
+                      sx={{
+                        alignItems: 'flex-start',
+                        py: 1,
+                      }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 32, mt: '2px' }}>
+                        {sec.icon}
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontWeight:
+                                activeSection === sec.id ? 600 : 500,
+                            }}
+                          >
+                            {sec.label}
+                          </Typography>
+                        }
+                        secondary={
+                          sec.description ? (
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              {sec.description}
+                            </Typography>
+                          ) : null
+                        }
+                      />
+                    </ListItemButton>
+                  ))}
+                </List>
+              </Box>
+
+              {/* ==== Área de formulario ==== */}
+              <Box
+                sx={{
+                  flex: 1,
+                  minWidth: 0,
+                }}
+              >
+                {/* IMPORTANTE: StyledForm sigue siendo un único form,
+                    pero adentro vamos a dividir en secciones con IDs */}
+                <StyledForm onSubmitPayload={handleSubmitEstilos} />
+
+                {/* Botón de guardado general, abajo de todo */}
+                <Box sx={{ mt: 3, textAlign: 'right' }}>
+                  <Button
+                    type="submit"
+                    form="estilos-form" // si tu StyledForm expone un id de form, si no lo quitás
+                    variant="contained"
+                    color="primary"
+                    disabled={saving || !hasAgencia}
+                    sx={{ textTransform: 'none', borderRadius: 999 }}
+                  >
+                    {saving ? 'Guardando…' : 'Guardar cambios'}
+                  </Button>
+                </Box>
+              </Box>
+            </Stack>
+
+            {/* Overlay cuando guarda o cuando no hay agencia */}
+            {(saving || !hasAgencia) && (
+              <Box
+                sx={(theme) => ({
                   position: 'absolute',
                   inset: 0,
-                  bgcolor: (theme) =>
+                  bgcolor:
                     theme.palette.mode === 'dark'
-                      ? 'rgba(15,23,42,0.6)'
-                      : 'rgba(255,255,255,0.6)',
+                      ? 'rgba(15,23,42,0.55)'
+                      : 'rgba(255,255,255,0.65)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   borderRadius: 2,
                   backdropFilter: 'blur(2px)',
                   zIndex: 10,
-                }}
+                })}
               >
                 <Stack alignItems="center" spacing={1}>
-                  <CircularProgress size={26} />
-                  <Typography variant="caption" color="text.secondary">
-                    Guardando estilos…
-                  </Typography>
+                  {saving ? (
+                    <>
+                      <CircularProgress size={26} />
+                      <Typography variant="caption" color="text.secondary">
+                        Guardando estilos…
+                      </Typography>
+                    </>
+                  ) : (
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ textAlign: 'center', maxWidth: 260 }}
+                    >
+                      Vinculá una agencia para habilitar la edición de estilos.
+                    </Typography>
+                  )}
                 </Stack>
               </Box>
             )}

@@ -22,39 +22,39 @@ export const navItems: NavItem[] = [
     label: 'Inicio',
     href: '/dashboard',
     matcher: { type: 'equals', href: '/dashboard' },
-    icon: 'chart-pie',
+    icon: 'house',                 // 🏠
     roles: ['admin', 'superadmin'],
   },
   {
     label: 'Agencias',
     href: '/dashboard/customers',
     matcher: { type: 'startsWith', href: '/dashboard/customers' },
-    icon: 'users',
+    icon: 'buildings',             // 🏢
     roles: ['superadmin'],
   },
   {
     label: 'Servicios',
     href: '/dashboard/servicios',
     matcher: { type: 'startsWith', href: '/dashboard/servicios' },
-    icon: 'servicios',
-    roles: ['admin','superadmin'],
+    icon: 'sparkles',              // ✨ algo más “marketinero”
+    roles: ['admin', 'superadmin'],
   },
 
-  // 🔹 Estilos ahora tiene SU propia ruta
+  // 🔹 Estilos
   {
     label: 'Estilos',
     href: '/dashboard/estilos',
     matcher: { type: 'startsWith', href: '/dashboard/estilos' },
-    icon: 'palette',
+    icon: 'palette',               // 🎨
     roles: ['admin'],
   },
 
-  // 🔹 Integraciones se queda para cosas de API (Atlas, TravelGateX, etc.)
+  // 🔹 Integraciones (APIs, etc.)
   {
     label: 'Integraciones',
     href: '/dashboard/integrations',
     matcher: { type: 'startsWith', href: '/dashboard/integrations' },
-    icon: 'plug',
+    icon: 'plugs-connected',       // 🔌🔌
     roles: ['admin', 'superadmin'],
   },
 
@@ -62,35 +62,35 @@ export const navItems: NavItem[] = [
     label: 'Paquetes Propios',
     href: '/dashboard/paquetesPropios',
     matcher: { type: 'startsWith', href: '/dashboard/paquetesPropios' },
-    icon: 'package',
+    icon: 'suitcase-simple',       // 🧳
     roles: ['admin', 'superadmin'],
   },
   {
     label: 'Mensajes',
     href: '/dashboard/mensajes',
     matcher: { type: 'startsWith', href: '/dashboard/mensajes' },
-    icon: 'messages',
+    icon: 'chats-circle',          // 💬
     roles: ['admin'],
   },
   {
     label: 'Perfil',
     href: '/dashboard/account',
     matcher: { type: 'startsWith', href: '/dashboard/account' },
-    icon: 'users',
+    icon: 'user-circle',           // 👤
     roles: ['admin', 'superadmin'],
   },
   {
     label: 'Atlas',
     href: '/dashboard/atlas',
     matcher: { type: 'startsWith', href: '/dashboard/atlas' },
-    icon: 'lan',
+    icon: 'globe-hemisphere-east', // 🌍
     roles: ['admin', 'superadmin'],
   },
   {
     label: 'Configuración',
     href: '/dashboard/settings',
     matcher: { type: 'startsWith', href: '/dashboard/settings' },
-    icon: 'gear-six',
+    icon: 'gear-six',              // ⚙️
     roles: ['admin', 'superadmin'],
   },
 ];

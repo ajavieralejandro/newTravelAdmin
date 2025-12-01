@@ -28,7 +28,9 @@ function isAllowed(pathname: string, role: RolUsuario): boolean {
     if (!item.roles.includes(role)) return false;
     const matchHref = item.matcher?.href ?? item.href;
     const type = item.matcher?.type ?? 'equals';
-    return type === 'startsWith' ? pathname.startsWith(matchHref) : pathname === matchHref;
+    return type === 'startsWith'
+      ? pathname.startsWith(matchHref)
+      : pathname === matchHref;
   });
 }
 
@@ -43,7 +45,6 @@ export default function Layout({ children }: LayoutProps): React.JSX.Element {
     // Home por rol (definilo en role-navigation.ts)
     const home = roleDefaultRoute?.[user.rol] ?? paths.dashboard.overview;
 
-    // Debug útil en dev
     if (process.env.NODE_ENV === 'development') {
       // eslint-disable-next-line no-console
       console.log({
@@ -84,19 +85,40 @@ export default function Layout({ children }: LayoutProps): React.JSX.Element {
         sx={{
           bgcolor: 'var(--mui-palette-background-default)',
           display: 'flex',
-          flexDirection: 'column',
+          flexDirection: 'row',
           position: 'relative',
           minHeight: '100%',
         }}
       >
+        {/* Lateral fijo */}
         <SideNav />
-        <Box sx={{ display: 'flex', flex: '1 1 auto', flexDirection: 'column', pl: { lg: 'var(--SideNav-width)' } }}>
+
+        {/* Columna principal (navbar superior + contenido) */}
+        <Box
+          sx={{
+            display: 'flex',
+            flex: '1 1 auto',
+            flexDirection: 'column',
+            pl: { lg: 'var(--SideNav-width)' }, // deja espacio lateral cuando el side nav está fijo
+          }}
+        >
+          {/* Navbar superior (probablemente fixed / sticky dentro de MainNav) */}
           <MainNav />
-          <main>
-            <Container maxWidth="xl" sx={{ py: '64px' }}>
+
+          {/* Contenido principal */}
+          <Box
+            component="main"
+            sx={{
+              flexGrow: 1,
+              // 👇 muy importante: espacio para que el contenido NO quede debajo del navbar
+              pt: 'calc(var(--MainNav-height) + 16px)',
+              pb: 4,
+            }}
+          >
+            <Container maxWidth="xl">
               {children}
             </Container>
-          </main>
+          </Box>
         </Box>
       </Box>
     </AuthGuard>
