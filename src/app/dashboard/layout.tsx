@@ -20,14 +20,20 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
+/**
+ * Determina si una ruta está permitida para un rol dado,
+ * usando la configuración de navItems.
+ */
 function isAllowed(pathname: string, role: RolUsuario): boolean {
   // Permití siempre el índice para poder redirigir desde ahí
   if (pathname === paths.dashboard.overview) return true;
 
   return navItems.some((item) => {
     if (!item.roles.includes(role)) return false;
+
     const matchHref = item.matcher?.href ?? item.href;
     const type = item.matcher?.type ?? 'equals';
+
     return type === 'startsWith'
       ? pathname.startsWith(matchHref)
       : pathname === matchHref;
@@ -102,16 +108,26 @@ export default function Layout({ children }: LayoutProps): React.JSX.Element {
             pl: { lg: 'var(--SideNav-width)' }, // deja espacio lateral cuando el side nav está fijo
           }}
         >
-          {/* Navbar superior (probablemente fixed / sticky dentro de MainNav) */}
-          <MainNav />
+          {/* Navbar superior sticky */}
+          <Box
+            component="header"
+            sx={(theme) => ({
+              position: 'sticky',
+              top: 0,
+              zIndex: 'var(--MainNav-zIndex)',
+              bgcolor: theme.palette.background.paper,
+              borderBottom: `1px solid ${theme.palette.divider}`,
+            })}
+          >
+            <MainNav />
+          </Box>
 
           {/* Contenido principal */}
           <Box
             component="main"
             sx={{
               flexGrow: 1,
-              // 👇 muy importante: espacio para que el contenido NO quede debajo del navbar
-              pt: 'calc(var(--MainNav-height) + 16px)',
+              pt: 2, // ya no hace falta compensar manualmente la altura del navbar
               pb: 4,
             }}
           >

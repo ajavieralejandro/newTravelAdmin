@@ -195,7 +195,7 @@ export default function Page(): React.JSX.Element {
         {!hasAgencia && (
           <Alert severity="info" variant="outlined">
             No se detectó una agencia asociada al usuario actual. Vinculá una
-            agencia desde el panel de administración para aplicar estos estilos.
+            agencia desde   el panel de administración para aplicar estos estilos.
           </Alert>
         )}
       </Stack>

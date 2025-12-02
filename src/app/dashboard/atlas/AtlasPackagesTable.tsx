@@ -27,12 +27,43 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
+type AtlasFlags = {
+  aereo?: boolean;
+  terrestre?: boolean;
+  maritimo?: boolean;
+  hotel?: boolean;
+  traslado?: boolean;
+  paseo?: boolean;
+  auto?: boolean;
+  seguro?: boolean;
+};
+
 type AtlasItem = {
-  paquete_id: number;
-  paquete_externo_id?: string | null;
-  creado?: boolean;
-  salida_id?: number | null;
-  titulo?: string | null;
+  externo_codigo: string;
+  titulo: string;
+  tipo_codigo?: string | null;
+  tipo_nombre?: string | null;
+  descripcion?: string | null;
+  precio_destacado?: number | null;
+  moneda?: string | null;
+  viaje_desde?: string | null;
+  viaje_hasta?: string | null;
+  vigencia_desde?: string | null;
+  vigencia_hasta?: string | null;
+  foto?: string | null;
+  flags?: AtlasFlags;
+  tiene_precio?: boolean;
+  tiene_fechas_viaje?: boolean;
+  tiene_fechas_vigencia?: boolean;
+  tiene_imagen?: boolean;
+};
+
+type AtlasStats = {
+  total_paquetes: number;
+  sin_precio: number;
+  sin_fechas_viaje: number;
+  sin_fechas_vigencia: number;
+  sin_imagen: number;
 };
 
 type AtlasResponse = {
@@ -43,6 +74,7 @@ type AtlasResponse = {
   endpoint?: string;
   tiempo_ms?: number;
   payload_enviado?: unknown;
+  estadisticas?: AtlasStats;
 };
 
 const DEBUG = true;
@@ -61,7 +93,8 @@ async function fetchPaquetes(
   agenciaId: number,
   signal?: AbortSignal
 ): Promise<AtlasResponse> {
-  const base = process.env.NEXT_PUBLIC_API_BASE ?? 'https://travelconnect.com.ar/api';
+  const base =
+    process.env.NEXT_PUBLIC_API_BASE ?? 'https://travelconnect.com.ar/api';
   const url = `${base}/atlas/agencias/${agenciaId}/importar-paquetes`;
 
   log('fetch →', { url, method: 'POST' });
@@ -89,17 +122,20 @@ async function fetchPaquetes(
   const json = await res.json();
   log('fetch json keys:', Object.keys(json ?? {}));
 
+  const items: AtlasItem[] = Array.isArray(json?.items)
+    ? (json.items as AtlasItem[])
+    : [];
+
   return {
     ok: Boolean(json?.ok),
-    cant: Number(
-      json?.cant ?? (Array.isArray(json?.items) ? json.items.length : 0)
-    ),
-    items: Array.isArray(json?.items) ? (json.items as AtlasItem[]) : [],
+    cant: Number(json?.cant ?? items.length),
+    items,
     agencia: typeof json?.agencia === 'string' ? json.agencia : undefined,
     endpoint: typeof json?.endpoint === 'string' ? json.endpoint : undefined,
     tiempo_ms:
       typeof json?.tiempo_ms === 'number' ? json.tiempo_ms : undefined,
     payload_enviado: json?.payload_enviado,
+    estadisticas: json?.estadisticas as AtlasStats | undefined,
   };
 }
 
@@ -108,7 +144,6 @@ export function AtlasPackagesTable({
 }: {
   idAgencia: number | string | undefined;
 }) {
-  // ✅ usar SOLO el id que viene por prop
   const agenciaNumericId = React.useMemo(() => {
     const n = toNumber(idAgencia);
     log('memo agenciaNumericId ←', { raw: idAgencia, parsed: n, valid: n !== null });
@@ -116,9 +151,13 @@ export function AtlasPackagesTable({
   }, [idAgencia]);
 
   const [rows, setRows] = React.useState<AtlasItem[]>([]);
-  const [meta, setMeta] = React.useState<
-    Pick<AtlasResponse, 'ok' | 'cant' | 'agencia' | 'tiempo_ms'>
-  >({});
+  const [meta, setMeta] = React.useState<{
+    ok?: boolean;
+    cant?: number;
+    agencia?: string;
+    tiempo_ms?: number;
+    estadisticas?: AtlasStats;
+  }>({});
   const [loading, setLoading] = React.useState(false);
   const [q, setQ] = React.useState('');
   const [page, setPage] = React.useState(0);
@@ -160,12 +199,15 @@ export function AtlasPackagesTable({
         cant: data.cant,
         agencia: data.agencia,
         tiempo_ms: data.tiempo_ms,
+        stats: data.estadisticas,
       });
 
-      // Podés ordenar si querés por ID o algo más
-      const ordered = [...(data.items ?? [])].sort(
-        (a, b) => a.paquete_id - b.paquete_id
-      );
+      // Ordenar por código externo o título
+      const ordered = [...(data.items ?? [])].sort((a, b) => {
+        const ca = a.externo_codigo ?? '';
+        const cb = b.externo_codigo ?? '';
+        return ca.localeCompare(cb);
+      });
 
       setRows(ordered);
       setMeta({
@@ -173,6 +215,7 @@ export function AtlasPackagesTable({
         cant: data.cant,
         agencia: data.agencia,
         tiempo_ms: data.tiempo_ms,
+        estadisticas: data.estadisticas,
       });
       setPage(0);
     } catch (e: any) {
@@ -200,7 +243,6 @@ export function AtlasPackagesTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 🔁 cuando cambia el ID, disparamos la carga
   React.useEffect(() => {
     log('effect id change →', { agenciaNumericId });
     if (agenciaNumericId) {
@@ -211,7 +253,6 @@ export function AtlasPackagesTable({
     }
   }, [agenciaNumericId, load]);
 
-  // Logs auxiliares
   React.useEffect(() => {
     log('rows changed →', rows.length);
   }, [rows]);
@@ -225,13 +266,18 @@ export function AtlasPackagesTable({
   const filtered = React.useMemo(() => {
     if (!q) return rows;
     const needle = q.toLowerCase();
-    return rows.filter(
-      (p) =>
-        (p.titulo ?? '').toLowerCase().includes(needle) ||
-        (p.paquete_externo_id ?? '').toLowerCase().includes(needle) ||
-        String(p.paquete_id).includes(needle) ||
-        String(p.salida_id ?? '').includes(needle)
-    );
+    return rows.filter((p) => {
+      const titulo = (p.titulo ?? '').toLowerCase();
+      const externo = (p.externo_codigo ?? '').toLowerCase();
+      const desc = (p.descripcion ?? '').toLowerCase();
+      const tipo = (p.tipo_nombre ?? '').toLowerCase();
+      return (
+        titulo.includes(needle) ||
+        externo.includes(needle) ||
+        desc.includes(needle) ||
+        tipo.includes(needle)
+      );
+    });
   }, [rows, q]);
 
   const pageRows = React.useMemo(() => {
@@ -250,12 +296,14 @@ export function AtlasPackagesTable({
       <CardHeader
         title={
           <Stack direction="row" spacing={1} alignItems="center">
-            <Typography variant="h6">Paquetes importados desde Atlas</Typography>
-            {meta.endpoint && (
+            <Typography variant="h6">
+              Productos Atlas (vista previa sin persistir)
+            </Typography>
+            {meta.ok && (
               <Chip
                 size="small"
                 variant="outlined"
-                label="Atlas API"
+                label="Atlas API · WSProductoBuscar"
                 sx={{ fontSize: 10 }}
               />
             )}
@@ -278,8 +326,8 @@ export function AtlasPackagesTable({
       <CardContent>
         {!agenciaNumericId && (
           <Alert severity="info" sx={{ mb: 2 }}>
-            Ingresá/seleccioná un <strong>ID de agencia</strong> válido para iniciar
-            la consulta.
+            Ingresá/seleccioná un <strong>ID de agencia</strong> válido para
+            iniciar la consulta.
           </Alert>
         )}
 
@@ -298,18 +346,34 @@ export function AtlasPackagesTable({
             />
           )}
           {typeof meta.cant === 'number' && (
-            <Chip size="small" label={`Items totales: ${meta.cant}`} />
+            <Chip size="small" label={`Items totales (API): ${meta.cant}`} />
           )}
+          <Chip size="small" label={`Filas en tabla: ${rows.length}`} />
           {typeof meta.tiempo_ms === 'number' && (
             <Chip size="small" label={`Tiempo: ${meta.tiempo_ms} ms`} />
           )}
-          <Chip size="small" label={`Filas en tabla: ${rows.length}`} />
+          {meta.estadisticas && (
+            <>
+              <Chip
+                size="small"
+                label={`Sin precio: ${meta.estadisticas.sin_precio}`}
+              />
+              <Chip
+                size="small"
+                label={`Sin fechas viaje: ${meta.estadisticas.sin_fechas_viaje}`}
+              />
+              <Chip
+                size="small"
+                label={`Sin imagen: ${meta.estadisticas.sin_imagen}`}
+              />
+            </>
+          )}
           <Chip size="small" label={loading ? 'Cargando…' : 'Listo'} />
         </Stack>
 
         <TextField
           fullWidth
-          placeholder="Buscar por título, ID paquete, ID externo o ID de salida…"
+          placeholder="Buscar por título, código, descripción o tipo…"
           value={q}
           onChange={(e) => {
             setQ(e.target.value);
@@ -336,50 +400,114 @@ export function AtlasPackagesTable({
           <Table size="small" stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell>Paquete</TableCell>
-                <TableCell>ID externo</TableCell>
-                <TableCell>Salida ID</TableCell>
-                <TableCell align="center">Estado</TableCell>
+                <TableCell>Código</TableCell>
+                <TableCell>Título</TableCell>
+                <TableCell>Fechas viaje</TableCell>
+                <TableCell>Precio</TableCell>
+                <TableCell>Moneda</TableCell>
+                <TableCell align="center">Componentes</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {pageRows.map((p) => (
-                <TableRow
-                  key={`${p.paquete_id}-${p.salida_id ?? 's'}`}
-                  hover
-                  sx={{ cursor: 'default' }}
-                >
+                <TableRow key={p.externo_codigo} hover sx={{ cursor: 'default' }}>
+                  <TableCell>
+                    <Typography variant="body2" fontWeight={600}>
+                      {p.externo_codigo}
+                    </Typography>
+                  </TableCell>
                   <TableCell>
                     <Stack spacing={0.5}>
                       <Typography variant="body2" fontWeight={600}>
                         {p.titulo ?? '—'}
                       </Typography>
-                      <Typography
-                        variant="caption"
-                        sx={{ opacity: 0.7 }}
-                      >{`Paquete #${p.paquete_id}`}</Typography>
+                      {p.tipo_nombre && (
+                        <Typography
+                          variant="caption"
+                          sx={{ opacity: 0.7 }}
+                        >{`${p.tipo_nombre}`}</Typography>
+                      )}
+                      {p.descripcion && (
+                        <Typography
+                          variant="caption"
+                          sx={{ opacity: 0.7 }}
+                          noWrap
+                        >
+                          {p.descripcion}
+                        </Typography>
+                      )}
                     </Stack>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">
-                      {p.paquete_externo_id ?? '—'}
+                      {p.viaje_desde || p.viaje_hasta
+                        ? `${p.viaje_desde ?? '¿?'} → ${p.viaje_hasta ?? '¿?'}`
+                        : '—'}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">
-                      {p.salida_id ?? '—'}
+                      {p.precio_destacado != null
+                        ? p.precio_destacado.toLocaleString('es-AR', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })
+                        : '—'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">
+                      {p.moneda && p.moneda !== '' ? p.moneda : '—'}
                     </Typography>
                   </TableCell>
                   <TableCell align="center">
-                    {typeof p.creado === 'boolean' ? (
-                      <Chip
-                        size="small"
-                        label={p.creado ? 'Creado' : 'No creado'}
-                        color={p.creado ? 'success' : 'default'}
-                        variant={p.creado ? 'filled' : 'outlined'}
-                      />
+                    {p.flags ? (
+                      <Stack direction="row" spacing={0.5} flexWrap="wrap">
+                        {p.flags.aereo && (
+                          <Chip size="small" label="Aéreo" variant="outlined" />
+                        )}
+                        {p.flags.terrestre && (
+                          <Chip
+                            size="small"
+                            label="Terrestre"
+                            variant="outlined"
+                          />
+                        )}
+                        {p.flags.hotel && (
+                          <Chip size="small" label="Hotel" variant="outlined" />
+                        )}
+                        {p.flags.traslado && (
+                          <Chip
+                            size="small"
+                            label="Traslados"
+                            variant="outlined"
+                          />
+                        )}
+                        {p.flags.paseo && (
+                          <Chip size="small" label="Paseos" variant="outlined" />
+                        )}
+                        {p.flags.auto && (
+                          <Chip size="small" label="Auto" variant="outlined" />
+                        )}
+                        {p.flags.seguro && (
+                          <Chip size="small" label="Seguro" variant="outlined" />
+                        )}
+                        {!p.flags.aereo &&
+                          !p.flags.terrestre &&
+                          !p.flags.hotel &&
+                          !p.flags.traslado &&
+                          !p.flags.paseo &&
+                          !p.flags.auto &&
+                          !p.flags.seguro && (
+                            <Typography variant="caption" sx={{ opacity: 0.6 }}>
+                              Sin componentes marcados
+                            </Typography>
+                          )}
+                      </Stack>
                     ) : (
-                      <Typography variant="body2">—</Typography>
+                      <Typography variant="caption" sx={{ opacity: 0.6 }}>
+                        Sin datos
+                      </Typography>
                     )}
                   </TableCell>
                 </TableRow>
@@ -388,7 +516,7 @@ export function AtlasPackagesTable({
               {!loading && pageRows.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={6}
                     align="center"
                     sx={{ py: 6, opacity: 0.7 }}
                   >
