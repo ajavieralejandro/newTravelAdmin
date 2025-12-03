@@ -5,12 +5,36 @@ import {
   TextField,
   MenuItem,
   Rating,
-  Typography
+  Typography,
+  Chip,
+  FormControl,
+  InputLabel,
+  Select,
+  OutlinedInput,
+  Theme,
+  useTheme,
+  FormHelperText
 } from '@mui/material'
 import { useState, useEffect, useMemo } from 'react'
 import { PaquetePropio } from '@/types/PaquetePropio'
 import { Hotel } from '@/types/Hotel'
 import BotonAgregarImagen from './BotonAgregarImagen'
+import CheckIcon from '@mui/icons-material/Check'
+
+/* ---------- API config ---------- */
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? 'https://travelconnect.com.ar/api'
+
+// 👇 ajustá este endpoint a lo que tengas en el back
+const CATEGORIAS_ENDPOINT = `${API_BASE_URL}/paquetes/categorias`
+
+/* ---------- types ---------- */
+interface CategoriaApi {
+  id: number
+  slug: string
+  nombre: string
+  icono?: string | null
+}
 
 /* ---------- utils ---------- */
 const convertirFecha = (fecha?: string) => {
@@ -29,6 +53,18 @@ const toAbsoluteUrl = (url?: string): string => {
   return `${base}/${url.replace(/^\/+/, '')}`
 }
 
+/* ---------- MUI Select styles ---------- */
+const ITEM_HEIGHT = 48;
+const ITEM_PADDING_TOP = 8;
+const MenuProps = {
+  PaperProps: {
+    style: {
+      maxHeight: ITEM_HEIGHT * 4.5 + ITEM_PADDING_TOP,
+      width: 250,
+    },
+  },
+};
+
 /* ---------- props ---------- */
 interface FormularioPaquetePropioProps {
   paquete?: Partial<PaquetePropio> | null
@@ -38,6 +74,7 @@ interface FormularioPaquetePropioProps {
 export default function FormularioPaquetePropio({
   paquete
 }: FormularioPaquetePropioProps) {
+  const theme = useTheme();
   const [moneda, setMoneda] = useState('ARS')
   const [estado, setEstado] = useState('inactivo')
   const [prioridad, setPrioridad] = useState<'alta' | 'media' | 'baja'>('media')
@@ -48,13 +85,62 @@ export default function FormularioPaquetePropio({
     categoria_hotel: '3'
   })
 
+  // categorías desde API
+  const [categoriasDisponibles, setCategoriasDisponibles] = useState<CategoriaApi[]>([])
+  const [categoriasSeleccionadas, setCategoriasSeleccionadas] = useState<string[]>([])
+  const [loadingCategorias, setLoadingCategorias] = useState(false)
+
+  /* ---------- fetch de categorías ---------- */
+  useEffect(() => {
+    let cancelado = false
+
+    const cargarCategorias = async () => {
+      setLoadingCategorias(true)
+      try {
+        const res = await fetch(CATEGORIAS_ENDPOINT, {
+          headers: {
+            Accept: 'application/json'
+          }
+        })
+
+        if (!res.ok) {
+          console.error('Error al cargar categorías', await res.text())
+          return
+        }
+
+        const data = await res.json()
+        // soporte a distintas formas de respuesta: {data:[...]} o [...]
+        const items: CategoriaApi[] = Array.isArray(data)
+          ? data
+          : Array.isArray(data.data)
+          ? data.data
+          : []
+
+        if (!cancelado) {
+          setCategoriasDisponibles(items)
+        }
+      } catch (err) {
+        console.error('Error de red al cargar categorías', err)
+      } finally {
+        if (!cancelado) {
+          setLoadingCategorias(false)
+        }
+      }
+    }
+
+    cargarCategorias()
+    return () => {
+      cancelado = true
+    }
+  }, [])
+
   /* ---------- sync con paquete ---------- */
   useEffect(() => {
     if (paquete?.tipo_moneda) setMoneda(paquete.tipo_moneda)
     if (typeof paquete?.activo === 'boolean') {
       setEstado(paquete.activo ? 'activo' : 'inactivo')
     }
-    if (paquete?.prioridad) setPrioridad(paquete.prioridad)
+    if (paquete?.prioridad) setPrioridad(paquete.prioridad as 'alta' | 'media' | 'baja')
     if (paquete?.hotel) {
       setHotel({
         id_hotel: paquete.hotel.id_hotel || '',
@@ -62,7 +148,47 @@ export default function FormularioPaquetePropio({
         categoria_hotel: paquete.hotel.categoria_hotel || '3'
       })
     }
-  }, [paquete?.hotel, paquete?.tipo_moneda, paquete?.activo, paquete?.prioridad])
+
+    // FIX: Sincronizar categorías asegurando que sea array
+    if ((paquete as any)?.categorias) {
+      const rawCats = (paquete as any).categorias;
+      
+      // Convertir a array de slugs
+      let slugs: string[] = [];
+      
+      if (Array.isArray(rawCats)) {
+        slugs = rawCats.map((c) => {
+          if (typeof c === 'string') return c;
+          if (c && typeof c === 'object') {
+            return c.slug || c.nombre || c.label || '';
+          }
+          return '';
+        }).filter((s: string) => s && typeof s === 'string');
+      } else if (typeof rawCats === 'string') {
+        // Intentar parsear si es JSON string
+        try {
+          const parsed = JSON.parse(rawCats);
+          if (Array.isArray(parsed)) {
+            slugs = parsed.map((c: any) => c.slug || c.nombre || c.label || '')
+              .filter((s: string) => s && typeof s === 'string');
+          }
+        } catch {
+          // Si no es JSON válido, ignorar
+        }
+      }
+      
+      setCategoriasSeleccionadas(slugs);
+    } else {
+      // Si no hay categorías, asegurar array vacío
+      setCategoriasSeleccionadas([]);
+    }
+  }, [
+    paquete?.hotel,
+    paquete?.tipo_moneda,
+    paquete?.activo,
+    paquete?.prioridad,
+    (paquete as any)?.categorias
+  ])
 
   /* ---------- fechas formateadas ---------- */
   const fechaInicioFormateada = useMemo(
@@ -80,6 +206,44 @@ export default function FormularioPaquetePropio({
     if (!raw) return ''
     return toAbsoluteUrl(raw)
   }, [paquete])
+
+  /* ---------- manejar selección de categorías ---------- */
+  const handleCategoriasChange = (event: any) => {
+    const value = event.target.value;
+    // FIX: Asegurar que siempre sea array
+    const newValue = Array.isArray(value) ? value : [];
+    setCategoriasSeleccionadas(newValue);
+  };
+
+  /* ---------- remover categoría individual ---------- */
+  const handleDeleteCategoria = (slugToDelete: string) => {
+    setCategoriasSeleccionadas(prev => 
+      prev.filter(slug => slug !== slugToDelete)
+    );
+  };
+
+  /* ---------- payload de categorías para el back (JSON) ---------- */
+  const categoriasJson = useMemo(() => {
+    // FIX: Asegurar que categoriasSeleccionadas sea array
+    const seleccionadas = Array.isArray(categoriasSeleccionadas) 
+      ? categoriasSeleccionadas 
+      : [];
+    
+    const full = seleccionadas.map((slug) => {
+      const def = categoriasDisponibles.find((c) => c.slug === slug)
+      return {
+        slug,
+        label: def?.nombre ?? slug,
+        color: null
+      }
+    })
+    return JSON.stringify(full)
+  }, [categoriasSeleccionadas, categoriasDisponibles])
+
+  // FIX: Asegurar que categoriasSeleccionadas sea array para renderizado
+  const categoriasParaRender = Array.isArray(categoriasSeleccionadas) 
+    ? categoriasSeleccionadas 
+    : [];
 
   return (
     <>
@@ -251,10 +415,104 @@ export default function FormularioPaquetePropio({
         <MenuItem value="baja">Baja</MenuItem>
       </TextField>
 
+      {/* NUEVO BLOQUE: CATEGORÍAS - Versión Mejorada */}
+      <Box mt={3} mb={2}>
+        <Typography variant="subtitle1" fontWeight={600} gutterBottom color="primary">
+          Categorías del Paquete
+        </Typography>
+        
+        <FormControl fullWidth margin="dense">
+          <InputLabel id="categorias-label">Seleccionar categorías</InputLabel>
+          <Select
+            labelId="categorias-label"
+            id="categorias_select"
+            name="categorias_select"
+            multiple
+            value={categoriasParaRender}
+            onChange={handleCategoriasChange}
+            input={<OutlinedInput label="Seleccionar categorías" />}
+            renderValue={(selected) => (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                {selected.map((slug) => {
+                  const categoria = categoriasDisponibles.find(c => c.slug === slug);
+                  return (
+                    <Chip 
+                      key={slug} 
+                      label={categoria?.nombre || slug}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                    />
+                  );
+                })}
+              </Box>
+            )}
+            MenuProps={MenuProps}
+            disabled={loadingCategorias}
+          >
+            {loadingCategorias ? (
+              <MenuItem disabled>
+                <Typography color="text.secondary">Cargando categorías...</Typography>
+              </MenuItem>
+            ) : categoriasDisponibles.length === 0 ? (
+              <MenuItem disabled>
+                <Typography color="text.secondary">No hay categorías disponibles</Typography>
+              </MenuItem>
+            ) : (
+              categoriasDisponibles.map((cat) => (
+                <MenuItem
+                  key={cat.id}
+                  value={cat.slug}
+                >
+                  <Box display="flex" alignItems="center" justifyContent="space-between" width="100%">
+                    <Typography>{cat.nombre}</Typography>
+                    {categoriasParaRender.includes(cat.slug) && (
+                      <CheckIcon fontSize="small" color="primary" />
+                    )}
+                  </Box>
+                </MenuItem>
+              ))
+            )}
+          </Select>
+          <FormHelperText>
+            Puedes seleccionar múltiples categorías ({categoriasParaRender.length} seleccionadas)
+          </FormHelperText>
+        </FormControl>
+
+        {/* Chips de categorías seleccionadas */}
+        {categoriasParaRender.length > 0 && (
+          <Box mt={2}>
+            <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+              Categorías seleccionadas:
+            </Typography>
+            <Box display="flex" flexWrap="wrap" gap={1} mt={1}>
+              {categoriasParaRender.map((slug) => {
+                const categoria = categoriasDisponibles.find(c => c.slug === slug);
+                return (
+                  <Chip
+                    key={slug}
+                    label={categoria?.nombre || slug}
+                    onDelete={() => handleDeleteCategoria(slug)}
+                    color="primary"
+                    variant="filled"
+                    size="small"
+                  />
+                );
+              })}
+            </Box>
+          </Box>
+        )}
+
+        {/* Hidden field que viaja al back como JSON */}
+        <input type="hidden" name="categorias" value={categoriasJson} />
+      </Box>
+
       {/* PREVIEW de imagen actual si viene del backend */}
       {imagenBackUrl && (
         <Box my={2}>
-          <Typography variant="subtitle2" gutterBottom>Imagen actual</Typography>
+          <Typography variant="subtitle2" gutterBottom>
+            Imagen actual
+          </Typography>
           <Box
             component="img"
             src={imagenBackUrl}
