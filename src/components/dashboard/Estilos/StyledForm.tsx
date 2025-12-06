@@ -2,7 +2,16 @@
 'use client';
 
 import * as React from 'react';
-import { Box, Stack, LinearProgress, Typography, Fade } from '@mui/material';
+import {
+  Box,
+  Stack,
+  LinearProgress,
+  Typography,
+  Fade,
+  Tabs,
+  Tab,
+  Divider,
+} from '@mui/material';
 import { FormProvider, useForm } from 'react-hook-form';
 
 import { useUserContext } from '@/contexts/user-context';
@@ -92,6 +101,26 @@ export function StyledForm({
     }
   });
 
+  // ------- Sub-tabs internos para atomizar secciones grandes -------
+
+  const [brandingTab, setBrandingTab] = React.useState<
+    'datos' | 'identidad' | 'archivos'
+  >('datos');
+
+  const [componentesTab, setComponentesTab] = React.useState<
+    'tarjetas' | 'publicidad' | 'footer'
+  >('tarjetas');
+
+  // Cuando cambio de sección principal, reseteo (opcional)
+  React.useEffect(() => {
+    if (activeSection === 'branding') {
+      setBrandingTab('datos');
+    }
+    if (activeSection === 'componentes') {
+      setComponentesTab('tarjetas');
+    }
+  }, [activeSection]);
+
   if (isLoading || !agenciaView) {
     return (
       <Stack spacing={1}>
@@ -105,58 +134,103 @@ export function StyledForm({
 
   return (
     <FormProvider {...methods}>
-      <Box
-        component="form"
-        id="estilos-form"
-        onSubmit={onSubmit}
-        noValidate
-      >
+      <Box component="form" id="estilos-form" onSubmit={onSubmit} noValidate>
         {/* Animación al cambiar de sección */}
-        <Fade
-          in
-          appear
-          timeout={220}
-          key={activeSection}
-        >
-          <Stack spacing={4} py={1}>
-            {/* 
-              División más realista por sección.
-              Todo sigue siendo un solo form; solo cambias lo que se muestra.
-            */}
-
-            {/* BRANDING: nombre, identidad, logos, archivos */}
+        <Fade in appear timeout={220} key={activeSection}>
+          <Stack spacing={3} py={1}>
+            {/* BRANDING: nombre, identidad, logos, archivos (atomizado con tabs) */}
             {activeSection === 'branding' && (
-              <>
-                <DatosGeneralesSection />
-                <IdentidadVisualSection />
-                <ArchivosMultimediaSection />
-              </>
+              <Stack spacing={2}>
+                <Box
+                  sx={{
+                    borderBottom: 1,
+                    borderColor: 'divider',
+                    mb: 1,
+                  }}
+                >
+                  <Tabs
+                    value={brandingTab}
+                    onChange={(_, v) => setBrandingTab(v)}
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    sx={{
+                      minHeight: 36,
+                      '& .MuiTab-root': {
+                        minHeight: 36,
+                        textTransform: 'none',
+                        fontSize: 13,
+                      },
+                    }}
+                  >
+                    <Tab value="datos" label="Datos generales" />
+                    <Tab value="identidad" label="Identidad visual" />
+                    <Tab value="archivos" label="Archivos / Multimedia" />
+                  </Tabs>
+                </Box>
+
+                <Divider />
+
+                {brandingTab === 'datos' && <DatosGeneralesSection />}
+                {brandingTab === 'identidad' && <IdentidadVisualSection />}
+                {brandingTab === 'archivos' && <ArchivosMultimediaSection />}
+              </Stack>
             )}
 
             {/* COLORES: paleta + ajustes visuales que dependan de color */}
             {activeSection === 'colores' && (
-              <>
+              <Stack spacing={2}>
                 <PaletaColoresSection />
-                {/* Si tu EncabezadoSection tiene temas de color, lo podés dejar acá también */}
-              </>
+                {/* Podrías agregar más sub-secciones de colores acá si hace falta */}
+              </Stack>
             )}
 
             {/* HOME: portada, hero, banner de registro, buscador */}
             {activeSection === 'home' && (
-              <>
+              <Stack spacing={3}>
                 <EncabezadoSection />
                 <BannerRegistroSection />
                 <BuscadorSection />
-              </>
+              </Stack>
             )}
 
-            {/* COMPONENTES: tarjetas, publicidad, footer, etc. */}
+            {/* COMPONENTES: tarjetas, publicidad, footer (atomizado con tabs) */}
             {activeSection === 'componentes' && (
-              <>
-                <TarjetasSection />
-                <PublicidadClienteSection />
-                <FooterSection />
-              </>
+              <Stack spacing={2}>
+                <Box
+                  sx={{
+                    borderBottom: 1,
+                    borderColor: 'divider',
+                    mb: 1,
+                  }}
+                >
+                  <Tabs
+                    value={componentesTab}
+                    onChange={(_, v) => setComponentesTab(v)}
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    sx={{
+                      minHeight: 36,
+                      '& .MuiTab-root': {
+                        minHeight: 36,
+                        textTransform: 'none',
+                        fontSize: 13,
+                      },
+                    }}
+                  >
+                    <Tab value="tarjetas" label="Tarjetas y listados" />
+                    <Tab value="publicidad" label="Publicidad al cliente" />
+                    <Tab value="footer" label="Footer y pie de página" />
+                  </Tabs>
+                </Box>
+
+                <Divider />
+
+                {componentesTab === 'tarjetas' && <TarjetasSection />}
+                {componentesTab === 'publicidad' && (
+                  <PublicidadClienteSection />
+                )}
+                {componentesTab === 'footer' && <FooterSection />}
+              </Stack>
             )}
           </Stack>
         </Fade>

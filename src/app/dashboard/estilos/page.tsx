@@ -24,7 +24,10 @@ import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import ViewCarouselOutlinedIcon from '@mui/icons-material/ViewCarouselOutlined';
 import WebAssetOutlinedIcon from '@mui/icons-material/WebAssetOutlined';
 
-import { StyledForm, type EstilosSectionId } from '@/components/dashboard/Estilos/StyledForm';
+import {
+  StyledForm,
+  type EstilosSectionId,
+} from '@/components/dashboard/Estilos/StyledForm';
 import { useUserContext } from '@/contexts/user-context';
 import { agenciasService } from '@/contexts/features/Agencias/services/agenciasService';
 import { mapFormToPayload } from '@/contexts/features/Agencias/services/agenciaMapper';
@@ -133,10 +136,12 @@ export default function Page(): React.JSX.Element {
 
   return (
     <Stack
-      spacing={3}
+      spacing={2}
       sx={{
-        maxWidth: 1200,
+        maxWidth: 960, // antes 1200
         mx: 'auto',
+        px: { xs: 2, md: 0 },
+        py: 2,
       }}
     >
       {/* ===== Header principal ===== */}
@@ -161,7 +166,7 @@ export default function Page(): React.JSX.Element {
         >
           <Stack spacing={0.5}>
             <Typography
-              variant="h4"
+              variant="h5" // antes h4
               sx={{
                 fontWeight: 700,
               }}
@@ -195,7 +200,7 @@ export default function Page(): React.JSX.Element {
         {!hasAgencia && (
           <Alert severity="info" variant="outlined">
             No se detectó una agencia asociada al usuario actual. Vinculá una
-            agencia desde   el panel de administración para aplicar estos estilos.
+            agencia desde el panel de administración para aplicar estos estilos.
           </Alert>
         )}
       </Stack>
@@ -204,11 +209,19 @@ export default function Page(): React.JSX.Element {
       <Card
         variant="outlined"
         sx={{
-          borderRadius: 3,
+          borderRadius: 2, // antes 3
           overflow: 'hidden',
+          boxShadow: 0,
+          maxHeight: '78vh',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
         <CardHeader
+          sx={{
+            py: 1.5,
+            px: 2,
+          }}
           title={
             <Stack direction="row" alignItems="center" spacing={1}>
               <Typography variant="h6" component="span">
@@ -237,7 +250,13 @@ export default function Page(): React.JSX.Element {
 
         <Divider />
 
-        <CardContent>
+        <CardContent
+          sx={{
+            p: 2,
+            pt: 1.5,
+            overflow: 'auto',
+          }}
+        >
           <Box sx={{ position: 'relative' }}>
             <Stack
               direction={{ xs: 'column', md: 'row' }}
@@ -247,7 +266,7 @@ export default function Page(): React.JSX.Element {
               {/* ==== Navegación lateral por secciones ==== */}
               <Box
                 sx={{
-                  width: { xs: '100%', md: 260 },
+                  width: { xs: '100%', md: 220 }, // antes 260
                   flexShrink: 0,
                   borderRadius: 2,
                   border: (theme) => `1px solid ${theme.palette.divider}`,
@@ -260,12 +279,12 @@ export default function Page(): React.JSX.Element {
                 <Typography
                   variant="subtitle2"
                   sx={{
-                    px: 2,
-                    pt: 1.5,
-                    pb: 1,
+                    px: 1.5, // antes 2
+                    pt: 1.25,
+                    pb: 0.75,
                     textTransform: 'uppercase',
                     letterSpacing: '.12em',
-                    fontSize: 11,
+                    fontSize: 10, // antes 11
                     color: 'text.secondary',
                   }}
                 >
@@ -280,10 +299,10 @@ export default function Page(): React.JSX.Element {
                       onClick={() => handleClickSection(sec.id)}
                       sx={{
                         alignItems: 'flex-start',
-                        py: 1,
+                        py: 0.75, // antes 1
                       }}
                     >
-                      <ListItemIcon sx={{ minWidth: 32, mt: '2px' }}>
+                      <ListItemIcon sx={{ minWidth: 30, mt: '2px' }}>
                         {sec.icon}
                       </ListItemIcon>
                       <ListItemText
@@ -291,6 +310,7 @@ export default function Page(): React.JSX.Element {
                           <Typography
                             variant="body2"
                             sx={{
+                              fontSize: 13,
                               fontWeight:
                                 activeSection === sec.id ? 600 : 500,
                             }}
@@ -303,6 +323,7 @@ export default function Page(): React.JSX.Element {
                             <Typography
                               variant="caption"
                               color="text.secondary"
+                              sx={{ fontSize: 11 }}
                             >
                               {sec.description}
                             </Typography>
@@ -319,6 +340,7 @@ export default function Page(): React.JSX.Element {
                 sx={{
                   flex: 1,
                   minWidth: 0,
+                  maxWidth: { md: 620 }, // limitar ancho del form
                 }}
               >
                 <StyledForm
@@ -326,14 +348,18 @@ export default function Page(): React.JSX.Element {
                   onSubmitPayload={handleSubmitEstilos}
                 />
 
-                <Box sx={{ mt: 3, textAlign: 'right' }}>
+                <Box sx={{ mt: 2, textAlign: 'right' }}>
                   <Button
                     type="submit"
                     form="estilos-form"
                     variant="contained"
                     color="primary"
                     disabled={saving || !hasAgencia}
-                    sx={{ textTransform: 'none', borderRadius: 999 }}
+                    sx={{
+                      textTransform: 'none',
+                      borderRadius: 999,
+                      px: 3,
+                    }}
                   >
                     {saving ? 'Guardando…' : 'Guardar cambios'}
                   </Button>
@@ -348,13 +374,13 @@ export default function Page(): React.JSX.Element {
                   inset: 0,
                   bgcolor:
                     theme.palette.mode === 'dark'
-                      ? 'rgba(15,23,42,0.55)'
-                      : 'rgba(255,255,255,0.65)',
+                      ? 'rgba(15,23,42,0.35)' // antes 0.55
+                      : 'rgba(255,255,255,0.55)', // antes 0.65
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   borderRadius: 2,
-                  backdropFilter: 'blur(2px)',
+                  backdropFilter: 'blur(1px)', // antes 2px
                   zIndex: 10,
                 })}
               >
