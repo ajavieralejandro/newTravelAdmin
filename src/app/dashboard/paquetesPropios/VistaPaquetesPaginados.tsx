@@ -1,10 +1,6 @@
 'use client';
 
-import {
-  useState,
-  useEffect,
-  useCallback,
-} from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Paper,
@@ -58,9 +54,9 @@ export type PaqueteListado = {
   ciudad?: string | null;
   cant_noches?: number | null;
   tipo_moneda?: string | null;
-  usuario?: string | null;          // Atlas / AllSeasons / Agencia
+  usuario?: string | null;
   usuario_id?: number | null;
-  external_source?: string | null;  // 'atlas' | 'manual' | 'allseasons' etc
+  external_source?: string | null;
   is_remote?: boolean;
   salidas?: Salida[];
 };
@@ -77,7 +73,6 @@ type PaginationBackend = {
 interface VistaPaquetesPaginadosProps {
   agenciaId: string;
 
-  // Callbacks opcionales para acciones por paquete
   onVerPaquete?: (paquete: PaqueteListado) => void;
   onEditarPaquete?: (paquete: PaqueteListado) => void;
   onDuplicarPaquete?: (paquete: PaqueteListado) => void;
@@ -119,24 +114,19 @@ export default function VistaPaquetesPaginados({
 
     try {
       const params = new URLSearchParams({
-        id: agenciaId, // 👈 el backend espera "id" de agencia
+        id: agenciaId,
         page: (page + 1).toString(),
         per_page: rowsPerPage.toString(),
       });
 
-      // Buscar por título
       if (searchTerm.trim() !== '') {
         params.append('filtro_titulo', searchTerm.trim());
       }
 
       const url = apiUrl(`/paquetes-paginados?${params.toString()}`);
-      console.log('🔎 GET', url);
-
       const resp = await fetch(url, {
         credentials: 'include',
-        headers: {
-          Accept: 'application/json',
-        },
+        headers: { Accept: 'application/json' },
       });
 
       if (!resp.ok) {
@@ -144,7 +134,6 @@ export default function VistaPaquetesPaginados({
       }
 
       const json = await resp.json();
-      console.log('✅ Respuesta /paquetes-paginados', json);
 
       if (!json || !Array.isArray(json.data) || !json.pagination) {
         throw new Error('Formato de respuesta inválido');
@@ -165,24 +154,19 @@ export default function VistaPaquetesPaginados({
     fetchPaquetes();
   }, [fetchPaquetes]);
 
-  // ✅ NUEVO: refrescar cuando se guarde/edite/duplique desde ModalPaquetePropio (o cualquier lado)
+  // ✅ NUEVO: escuchar evento global para refrescar la tabla
   useEffect(() => {
     const onUpdated = () => {
-      // refresca con el estado actual (page / filtros / etc)
+      // refresca con el mismo page/per_page/filtro actual
       fetchPaquetes();
     };
-
     window.addEventListener('paquetes-propios:updated', onUpdated);
     return () => window.removeEventListener('paquetes-propios:updated', onUpdated);
   }, [fetchPaquetes]);
 
-  const handleChangePage = (_: unknown, newPage: number) => {
-    setPage(newPage);
-  };
+  const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
 
-  const handleChangeRowsPerPage = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
@@ -192,15 +176,11 @@ export default function VistaPaquetesPaginados({
     setPage(0);
   };
 
-  const handleSearchSubmit = () => {
-    // simplemente vuelve a llamar al fetch con el nuevo searchTerm
-    fetchPaquetes();
-  };
+  const handleSearchSubmit = () => fetchPaquetes();
 
   const getPrecioDestacado = (p: PaqueteListado): number | null => {
     if (!p.salidas || p.salidas.length === 0) return null;
-    const primera = p.salidas[0];
-    return primera?.doble_precio ?? null;
+    return p.salidas[0]?.doble_precio ?? null;
   };
 
   const getMoneda = (p: PaqueteListado): string => {
@@ -211,127 +191,14 @@ export default function VistaPaquetesPaginados({
     return m || '$';
   };
 
-  // --- ACCIONES ---
-
-  // Duplicar paquete:
-  // - si el padre define onDuplicarPaquete -> se usa eso
-  // - si no, se hace GET /get_paquete2/{id} y luego POST /create_paquete2/{agenciaId}
   const handleDuplicar = async (p: PaqueteListado) => {
-    if (onDuplicarPaquete) {
-      onDuplicarPaquete(p);
-      return;
-    }
-
-    if (!p.id || !agenciaId) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      // 1) Traer paquete completo
-      const getUrl = apiUrl(`/get_paquete2/${p.id}`);
-      console.log('📄 GET paquete para duplicar', getUrl);
-
-      const getResp = await fetch(getUrl, {
-        credentials: 'include',
-        headers: {
-          Accept: 'application/json',
-        },
-      });
-
-      if (!getResp.ok) {
-        throw new Error(`Error al obtener paquete (${getResp.status})`);
-      }
-
-      const paqueteCompleto = await getResp.json();
-
-      // 2) Ajustar datos para la copia
-      // - limpiar id
-      // - cambiar título
-      const payload: any = {
-        ...paqueteCompleto,
-        id: null,
-        titulo: `${paqueteCompleto.titulo ?? p.titulo} (copia)`,
-      };
-
-      // 3) Crear nuevo paquete para esta agencia
-      const postUrl = apiUrl(`/create_paquete2/${agenciaId}`);
-      console.log('📄 POST duplicar paquete', postUrl, payload);
-
-      const postResp = await fetch(postUrl, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!postResp.ok) {
-        throw new Error(`Error al duplicar paquete (${postResp.status})`);
-      }
-
-      // Refrescar lista
-      await fetchPaquetes();
-    } catch (e) {
-      console.error('❌ Error duplicando paquete', e);
-      setError(
-        e instanceof Error
-          ? e.message
-          : 'Error desconocido al duplicar el paquete'
-      );
-    } finally {
-      setLoading(false);
-    }
+    if (onDuplicarPaquete) return onDuplicarPaquete(p);
+    // si querés, podés dejar fallback, pero en tu caso lo manejamos arriba
   };
 
-  // Eliminar paquete:
-  // - si hay onEliminarPaquete -> se usa
-  // - si no, DELETE /delete_paquete/{id}
   const handleEliminar = async (p: PaqueteListado) => {
-    if (onEliminarPaquete) {
-      onEliminarPaquete(p);
-      return;
-    }
-
-    if (!p.id) return;
-
-    const confirmado = window.confirm(
-      `¿Seguro que querés eliminar el paquete "${p.titulo}"?`
-    );
-    if (!confirmado) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const url = apiUrl(`/delete_paquete/${p.id}`);
-      console.log('🗑 DELETE', url);
-
-      const resp = await fetch(url, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers: {
-          Accept: 'application/json',
-        },
-      });
-
-      if (!resp.ok) {
-        throw new Error(`Error al eliminar paquete (${resp.status})`);
-      }
-
-      await fetchPaquetes();
-    } catch (e) {
-      console.error('❌ Error eliminando paquete', e);
-      setError(
-        e instanceof Error
-          ? e.message
-          : 'Error desconocido al eliminar el paquete'
-      );
-    } finally {
-      setLoading(false);
-    }
+    if (onEliminarPaquete) return onEliminarPaquete(p);
+    // idem: si querés fallback, lo reponemos después
   };
 
   if (loading && paquetes.length === 0) {
@@ -344,14 +211,12 @@ export default function VistaPaquetesPaginados({
 
   return (
     <Box sx={{ width: '100%' }}>
-      {/* Error arriba, pero sin bloquear todo si ya hay data */}
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
       )}
 
-      {/* Barra de búsqueda y refresco */}
       <Paper
         elevation={0}
         sx={{
@@ -398,7 +263,6 @@ export default function VistaPaquetesPaginados({
         </Box>
       </Paper>
 
-      {/* Tabla de resultados */}
       <TableContainer component={Paper} elevation={0} variant="outlined">
         <Table>
           <TableHead>
@@ -435,6 +299,7 @@ export default function VistaPaquetesPaginados({
               </TableCell>
             </TableRow>
           </TableHead>
+
           <TableBody>
             {paquetes.length === 0 ? (
               <TableRow>
@@ -447,16 +312,13 @@ export default function VistaPaquetesPaginados({
             ) : (
               paquetes.map((p) => {
                 const precio = getPrecioDestacado(p);
-                const origen =
-                  p.external_source ?? (p.is_remote ? 'remoto' : 'manual');
+                const origen = p.external_source ?? (p.is_remote ? 'remoto' : 'manual');
 
                 return (
                   <TableRow
                     key={String(p.id ?? Math.random())}
                     hover
-                    sx={{
-                      '&:hover': { bgcolor: 'action.hover' },
-                    }}
+                    sx={{ '&:hover': { bgcolor: 'action.hover' } }}
                   >
                     <TableCell>
                       <Box>
@@ -464,41 +326,33 @@ export default function VistaPaquetesPaginados({
                           {p.titulo}
                         </Typography>
                         {p.descripcion && (
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            noWrap
-                          >
+                          <Typography variant="caption" color="text.secondary" noWrap>
                             {p.descripcion.substring(0, 70)}...
                           </Typography>
                         )}
                       </Box>
                     </TableCell>
+
                     <TableCell>
                       {p.ciudad ? (
-                        <Chip
-                          label={p.ciudad}
-                          size="small"
-                          variant="outlined"
-                        />
+                        <Chip label={p.ciudad} size="small" variant="outlined" />
                       ) : (
                         <Typography variant="caption" color="text.disabled">
                           Sin ciudad
                         </Typography>
                       )}
                     </TableCell>
+
                     <TableCell align="center">
                       {p.cant_noches ? (
-                        <Chip
-                          label={`${p.cant_noches} noches`}
-                          size="small"
-                        />
+                        <Chip label={`${p.cant_noches} noches`} size="small" />
                       ) : (
                         <Typography variant="caption" color="text.disabled">
                           -
                         </Typography>
                       )}
                     </TableCell>
+
                     <TableCell align="right">
                       {precio != null ? (
                         <Typography variant="body2" fontWeight={600}>
@@ -510,6 +364,7 @@ export default function VistaPaquetesPaginados({
                         </Typography>
                       )}
                     </TableCell>
+
                     <TableCell align="center">
                       <Chip
                         label={origen}
@@ -525,58 +380,35 @@ export default function VistaPaquetesPaginados({
                         sx={{ textTransform: 'capitalize' }}
                       />
                     </TableCell>
+
                     <TableCell align="center">
                       <Box display="flex" justifyContent="center" gap={0.5}>
-                        {/* Ver detalles */}
                         <Tooltip title="Ver detalles">
-                          <IconButton
-                            size="small"
-                            color="info"
-                            onClick={() => onVerPaquete?.(p)}
-                          >
+                          <IconButton size="small" color="info" onClick={() => onVerPaquete?.(p)}>
                             <VisibilityIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
 
-                        {/* Editar paquete */}
                         <Tooltip title="Editar paquete">
-                          <IconButton
-                            size="small"
-                            color="primary"
-                            onClick={() => onEditarPaquete?.(p)}
-                          >
+                          <IconButton size="small" color="primary" onClick={() => onEditarPaquete?.(p)}>
                             <EditIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
 
-                        {/* Duplicar paquete */}
                         <Tooltip title="Duplicar paquete">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDuplicar(p)}
-                          >
+                          <IconButton size="small" onClick={() => handleDuplicar(p)}>
                             <ContentCopyIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
 
-                        {/* Gestionar salidas */}
                         <Tooltip title="Ver / editar salidas">
-                          <IconButton
-                            size="small"
-                            color="secondary"
-                            onClick={() => onGestionarSalidas?.(p)}
-                          >
+                          <IconButton size="small" color="secondary" onClick={() => onGestionarSalidas?.(p)}>
                             <EventSeatIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
 
-                        {/* Eliminar paquete */}
                         <Tooltip title="Eliminar paquete">
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => handleEliminar(p)}
-                          >
+                          <IconButton size="small" color="error" onClick={() => handleEliminar(p)}>
                             <DeleteIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
@@ -590,7 +422,6 @@ export default function VistaPaquetesPaginados({
         </Table>
       </TableContainer>
 
-      {/* Paginación */}
       {paquetes.length > 0 && (
         <TablePagination
           rowsPerPageOptions={[5, 10, 25, 50]}
@@ -607,22 +438,12 @@ export default function VistaPaquetesPaginados({
         />
       )}
 
-      {/* Resumen */}
-      <Box
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-        mt={2}
-      >
+      <Box display="flex" justifyContent="space-between" alignItems="center" mt={2}>
         <Typography variant="caption" color="text.secondary">
           Mostrando {paquetes.length} de {pagination.total} paquetes
         </Typography>
 
-        <Chip
-          label={`${pagination.current_page}/${pagination.last_page}`}
-          size="small"
-          variant="outlined"
-        />
+        <Chip label={`${pagination.current_page}/${pagination.last_page}`} size="small" variant="outlined" />
       </Box>
     </Box>
   );
