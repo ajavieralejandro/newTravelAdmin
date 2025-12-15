@@ -165,6 +165,17 @@ export default function VistaPaquetesPaginados({
     fetchPaquetes();
   }, [fetchPaquetes]);
 
+  // ✅ NUEVO: refrescar cuando se guarde/edite/duplique desde ModalPaquetePropio (o cualquier lado)
+  useEffect(() => {
+    const onUpdated = () => {
+      // refresca con el estado actual (page / filtros / etc)
+      fetchPaquetes();
+    };
+
+    window.addEventListener('paquetes-propios:updated', onUpdated);
+    return () => window.removeEventListener('paquetes-propios:updated', onUpdated);
+  }, [fetchPaquetes]);
+
   const handleChangePage = (_: unknown, newPage: number) => {
     setPage(newPage);
   };
@@ -235,7 +246,6 @@ export default function VistaPaquetesPaginados({
       const paqueteCompleto = await getResp.json();
 
       // 2) Ajustar datos para la copia
-      // (esto depende de cómo venga la estructura, pero en general:
       // - limpiar id
       // - cambiar título
       const payload: any = {
@@ -528,7 +538,7 @@ export default function VistaPaquetesPaginados({
                           </IconButton>
                         </Tooltip>
 
-                        {/* Editar paquete (el padre maneja el formulario y POST /paquetes/{id}/update) */}
+                        {/* Editar paquete */}
                         <Tooltip title="Editar paquete">
                           <IconButton
                             size="small"

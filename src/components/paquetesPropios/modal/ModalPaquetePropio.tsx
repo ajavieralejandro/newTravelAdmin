@@ -162,9 +162,13 @@ export default function ModalPaquetePropio() {
         await crearPaquetePropio(formData)
       }
 
+      // refresco del contexto (si aplica)
       if (idAgenciaEnCreacion) {
         await fetchPaquetesDeAgencia(idAgenciaEnCreacion)
       }
+
+      // ✅ IMPORTANTÍSIMO: avisar a la tabla paginada que refresque
+      window.dispatchEvent(new Event('paquetes-propios:updated'))
 
       cerrarModal()
     } catch (error) {
